@@ -1,4 +1,3 @@
-use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -6,7 +5,9 @@ use std::path::Path;
 // See https://docs.blender.org/manual/en/latest/files/blend/open_save.html#id8
 #[derive(Default, Debug, Clone)]
 pub enum CompressionType {
+    #[cfg(feature = "gzip")]
     Gzip, // used for < 3.0
+    #[cfg(feature = "zstd")]
     Zstd, // used for >= 3.0
     #[default]
     None, // used universally
@@ -43,7 +44,9 @@ fn read_basic_header(path: &Path) -> Option<[u8; 5]> {
     }
 }
 
+#[cfg(feature = "gzip")]
 fn read_gzip_header(path: &Path) -> Option<[u8; 5]> {
+    use flate2::read::GzDecoder;
     let mut file = File::open(path).ok()?;
     let mut decoder = GzDecoder::new(&mut file);
     let mut header = [0; 7];
@@ -54,11 +57,13 @@ fn read_gzip_header(path: &Path) -> Option<[u8; 5]> {
     Some(version_bytes)
 }
 
+#[cfg(feature = "zstd")]
 fn read_zstd_header(path: &Path) -> Option<[u8; 5]> {
+    use zstd::Decoder as zstdDecoder;
     let file = File::open(path).ok()?;
     let mut header = [0; 7];
 
-    let mut decoder = zstd::Decoder::new(file).ok()?;
+    let mut decoder = zstdDecoder::new(file).ok()?;
     decoder.read_exact(&mut header).ok()?;
     println!("{:?}", header);
     let mut version_bytes = [0; 5];
@@ -72,17 +77,22 @@ fn get_blendfile_header(path: &Path) -> Option<([u8; 5], CompressionType)> {
         println!["No compression detected, assuming none"];
         return h;
     }
-    let h = read_gzip_header(path).map(|b| (b, CompressionType::Gzip));
-    if h.is_some() {
-        println!["gzip blendfile detected"];
-        return h;
+    #[cfg(feature = "gzip")]
+    {
+        let h = read_gzip_header(path).map(|b| (b, CompressionType::Gzip));
+        if h.is_some() {
+            println!["gzip blendfile detected"];
+            return h;
+        }
     }
-    let h = read_zstd_header(path).map(|b| (b, CompressionType::Zstd));
-    if h.is_some() {
-        println!["zstd blendfile detected"];
-        return h;
+    #[cfg(feature = "zstd")]
+    {
+        let h = read_zstd_header(path).map(|b| (b, CompressionType::Zstd));
+        if h.is_some() {
+            println!["zstd blendfile detected"];
+            return h;
+        }
     }
-
     None
 }
 

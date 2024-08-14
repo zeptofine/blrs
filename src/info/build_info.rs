@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::LazyLock,
 };
@@ -98,17 +98,17 @@ pub trait BlendBuild {
     fn display_label(&self) -> String;
 }
 
-#[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
 pub struct BasicBuildInfo {
     pub version: Version, // BuildInfo Version format: [major].[minor].[patch]-[pre]+[build].[hash]
-    pub commit_date: DateTime<Utc>,
+    pub commit_dt: DateTime<Utc>,
 }
 
 impl BasicBuildInfo {
     fn new(version: Version, commit_date: DateTime<Utc>) -> Self {
         let mut s = Self {
             version,
-            commit_date,
+            commit_dt: commit_date,
         };
 
         let v_str = s.version.to_string();
@@ -138,7 +138,7 @@ impl Default for BasicBuildInfo {
     fn default() -> Self {
         BasicBuildInfo {
             version: Version::parse("0.1.0").unwrap(),
-            commit_date: Utc::now(),
+            commit_dt: Utc::now(),
         }
     }
 }
@@ -229,25 +229,24 @@ pub struct LocalBlendBuild {
 }
 
 impl LocalBlendBuild {
-    pub fn read(path: PathBuf) -> Result<Self, io::Error> {
-        let mut path = path;
-        if path.is_dir() {
-            path = path.join(".build_info");
-        }
-
-        let file = File::open(&path)?;
+    pub fn read(path: &Path) -> Result<Self, io::Error> {
+        let file = File::open(path)?;
         let lis: BuildInfoSpec = serde_json::from_reader(file)?;
 
         Ok(Self {
-            folder: path.parent().unwrap().to_path_buf(),
+            folder: path.parent().unwrap().into(),
             info: lis.metadata,
         })
     }
 
     pub fn write(&self) -> Result<(), io::Error> {
+        self.write_to(self.folder.join(".build_info"))
+    }
+
+    pub fn write_to(&self, path: PathBuf) -> Result<(), io::Error> {
         let data = serde_json::to_string(&BuildInfoSpec::from(self.info.clone())).unwrap();
 
-        let mut file = File::create(self.folder.join(".build_info"))?;
+        let mut file = File::create(path)?;
         file.write_all(data.as_bytes())?;
 
         Ok(())
@@ -282,7 +281,7 @@ mod tests {
 
     use semver::{BuildMetadata, Prerelease, Version};
 
-    use crate::build_info::parse_blender_ver;
+    use crate::info::parse_blender_ver;
     const TEST_STRINGS: LazyLock<[(&str, Version); 10]> = LazyLock::new(|| {
         [
             ("Blender1.0", Version::parse("1.0.0").unwrap()),
