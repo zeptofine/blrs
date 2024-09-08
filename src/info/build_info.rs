@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, Write},
     path::{Path, PathBuf},
@@ -176,7 +177,7 @@ impl BlendBuild for BasicBuildInfo {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct LocalBuildInfo {
     pub info: BasicBuildInfo,
     pub is_favorited: bool,
@@ -184,6 +185,8 @@ pub struct LocalBuildInfo {
     pub custom_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_exe: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_env: Option<HashMap<String, String>>,
 }
 
 /// This is what a normal `.build_info` file looks like.
@@ -202,7 +205,7 @@ impl From<LocalBuildInfo> for BuildInfoSpec {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct LocalBlendBuild {
     pub folder: PathBuf,
     pub info: LocalBuildInfo,
@@ -256,6 +259,7 @@ impl LocalBlendBuild {
                     is_favorited: false,
                     custom_name: custom_name,
                     custom_exe: None,
+                    custom_env: None,
                 };
 
                 let local_build = LocalBlendBuild {
