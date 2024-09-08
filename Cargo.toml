@@ -4,13 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chrono = { version = "0.4.38", features = ["serde"] }
-regex = "1.10.6"
-semver = { version = "1.0.23", features = ["serde"] }
-serde = { version = "1.0.207", features = ["derive"] }
-serde_json = "1.0.124"
-titlecase = "3.3.0"
-uuid = "1.10.0"
 
 # downloading Blender builds from builders
 reqwest = "0.12.5"
@@ -19,14 +12,30 @@ reqwest = "0.12.5"
 flate2 = { version = "1.0.31", optional = true }
 zstd = { version = "0.13.2", optional = true }
 
-# gui
-# iced = { git = "https://github.com/iced-rs/iced", features = ["debug"] }
-# lilt = "0.6.1"
+
+# parsing build info
+regex = "1.10.6"
+serde = { version = "1.0.207", features = ["derive"] }
+serde_json = "1.0.124"
+chrono = { version = "0.4.38", features = ["serde"] }
+semver = { version = "1.0.23", features = ["serde"] }
+
+# Helpers
+uuid = "1.10.0"
+directories = "5.0.1"
+figment = { version = "0.10.19", features = [
+    "env",
+    "json",
+    "parking_lot",
+    "serde_json",
+    "toml",
+] }
+which = { version = "6.0.3", features = ["tracing"] }
+
 
 [features]
 zstd = ["dep:zstd"]
 gzip = ["dep:flate2"]
-
 
 [profile.release]
 lto = "fat"

@@ -57,13 +57,13 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WildPlacement<T: PartialEq> {
     Any,
     Exact(T),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrdPlacement<T: PartialOrd + PartialEq> {
     Latest,
     Any,
@@ -119,113 +119,149 @@ pub struct VersionSearchQuery {
     pub major: OrdPlacement<u64>,
     pub minor: OrdPlacement<u64>,
     pub patch: OrdPlacement<u64>,
-    pub branch: Option<WildPlacement<String>>,
-    pub commit_hash: Option<WildPlacement<String>>,
-    pub commit_dt: Option<OrdPlacement<DateTime<Utc>>>,
+    pub branch: WildPlacement<String>,
+    pub commit_hash: WildPlacement<String>,
+    pub commit_dt: OrdPlacement<DateTime<Utc>>,
 }
 
-pub struct BInfoMatcher<'a, 'b> {
-    versions: &'a [&'b BasicBuildInfo],
+pub struct BInfoMatcher<'a> {
+    versions: &'a [BasicBuildInfo],
 }
 
-impl<'a, 'b> BInfoMatcher<'a, 'b> {
-    fn new(versions: &'a [&'b BasicBuildInfo]) -> Self {
+impl<'a> BInfoMatcher<'a> {
+    fn new(versions: &'a [BasicBuildInfo]) -> Self {
         BInfoMatcher { versions }
     }
 
     pub fn match_all(&self, query: &VersionSearchQuery) -> Vec<&BasicBuildInfo> {
-        let mut versions = Vec::from(self.versions);
+        let vs = self
+            .versions
+            .iter()
+            .filter(|build| match query.commit_hash.clone() {
+                WildPlacement::Any => true,
+                WildPlacement::Exact(hash) => build.build_hash().is_some_and(|bh| bh == hash),
+            })
+            .filter(|build| match query.branch.clone() {
+                WildPlacement::Any => true,
+                WildPlacement::Exact(branch) => build.branch().is_some_and(|br| br == branch),
+            })
+            .collect::<Vec<&BasicBuildInfo>>();
 
-        // check build_hash
-        versions = if let Some(WildPlacement::Exact(h)) = &query.commit_hash {
-            let vs: Vec<_> = versions
-                .into_iter()
-                .filter(|v| match v.build_hash() {
-                    Some(bh) => bh == h,
-                    None => false,
-                })
-                .collect();
-
-            vs
-        } else {
-            versions
-        };
-
-        // check branch
-        versions = if let Some(WildPlacement::Exact(b)) = &query.branch {
-            let vs: Vec<_> = versions
-                .into_iter()
-                .filter(|v| match v.branch() {
-                    Some(br) => br == b,
-                    None => false,
-                })
-                .collect();
-
-            vs
-        } else {
-            versions
-        };
-
-        // check versions
-        versions = match query.major {
-            OrdPlacement::Any => versions,
+        let vs = match query.major {
+            OrdPlacement::Any => vs,
             _ => query
                 .major
-                .search(
-                    &(versions
-                        .iter()
-                        .map(|v| &v.version.major)
-                        .collect::<Vec<_>>()),
-                )
+                .search(&(vs.iter().map(|v| &v.version.major).collect::<Vec<_>>()))
                 .into_iter()
-                .map(|i| versions[i])
+                .map(|i| vs[i])
                 .collect(),
         };
-        versions = match query.minor {
-            OrdPlacement::Any => versions,
+        let vs = match query.minor {
+            OrdPlacement::Any => vs,
             _ => query
                 .minor
-                .search(
-                    &(versions
-                        .iter()
-                        .map(|v| &v.version.minor)
-                        .collect::<Vec<_>>()),
-                )
+                .search(&(vs.iter().map(|v| &v.version.minor).collect::<Vec<_>>()))
                 .into_iter()
-                .map(|i| versions[i])
+                .map(|i| vs[i])
                 .collect(),
         };
-        versions = match query.patch {
-            OrdPlacement::Any => versions,
+        let vs = match query.patch {
+            OrdPlacement::Any => vs,
             _ => query
                 .patch
-                .search(
-                    &(versions
-                        .iter()
-                        .map(|v| &v.version.patch)
-                        .collect::<Vec<_>>()),
-                )
+                .search(&(vs.iter().map(|v| &v.version.patch).collect::<Vec<_>>()))
                 .into_iter()
-                .map(|i| versions[i])
+                .map(|i| vs[i])
                 .collect(),
         };
 
-        println!["{:#?}", versions];
+        let vs = match query.commit_dt {
+            OrdPlacement::Any => vs,
+            _ => query
+                .commit_dt
+                .search(&(vs.iter().map(|v| &v.commit_dt).collect::<Vec<_>>()))
+                .into_iter()
+                .map(|i| vs[i])
+                .collect(),
+        };
 
-        // check commit time
-        versions = query
-            .commit_dt
-            .as_ref()
-            .map(|placement| match placement {
-                OrdPlacement::Any => versions,
-                p => p
-                    .search(&(versions.iter().map(|v| &v.commit_dt).collect::<Vec<_>>()))
-                    .into_iter()
-                    .map(|i| versions[i])
-                    .collect(),
-            })
-            .unwrap_or_default();
+        vs
+    }
+}
 
-        versions
+#[cfg(test)]
+mod tests {
+    use std::sync::LazyLock;
+
+    use chrono::DateTime;
+    use semver::Version;
+
+    use crate::info::BasicBuildInfo;
+
+    use super::BInfoMatcher;
+
+    static builds: LazyLock<Vec<BasicBuildInfo>> = LazyLock::new(|| {
+        vec![
+            BasicBuildInfo {
+                version: Version::parse("1.2.3+stable").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2020-05-04T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("1.2.2+stable").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2020-04-02T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("1.2.1+daily").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2020-03-01T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("1.2.4+stable").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2020-06-03T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("3.6.14+lts").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2024-07-16T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("4.2.0+stable").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2024-07-16T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("4.3.0+daily").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2024-07-30T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("4.3.0+daily").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2024-07-28T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+            BasicBuildInfo {
+                version: Version::parse("4.3.1+daily").unwrap(),
+                commit_dt: DateTime::parse_from_rfc3339("2024-07-20T00:00:00+00:00")
+                    .unwrap()
+                    .to_utc(),
+            },
+        ]
+    });
+
+    #[test]
+    fn test_binfo_matcher() {
+        let bs = builds.clone();
+        let matcher = BInfoMatcher::new(&bs);
     }
 }

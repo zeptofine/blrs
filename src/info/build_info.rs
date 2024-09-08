@@ -11,7 +11,8 @@ use regex::Regex;
 use reqwest::Url;
 use semver::{BuildMetadata, Prerelease, Version};
 use serde::{Deserialize, Serialize};
-use titlecase::titlecase;
+
+use super::{get_info_from_blender, CollectedInfo};
 
 static MATCHERS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     [
@@ -44,7 +45,6 @@ const OLDVER_CUTOFF: Version = Version {
 };
 
 const FILE_VERSION: f32 = 1.0;
-const LTS_TAGS: &[&str] = &["2.83", "2.93", "3.3", "3.6", "4.2", "4.6", "5.2"];
 
 pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
     let mut s = s.trim();
@@ -80,7 +80,7 @@ pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
 
             v.pre = match g.name("pre") {
                 None => Prerelease::EMPTY,
-                Some(m) => Prerelease::from_str(m.as_str()).unwrap(),
+                Some(m) => Prerelease::from_str(&m.as_str().to_lowercase()).unwrap(),
             };
 
             Some(v)
@@ -100,37 +100,25 @@ pub trait BlendBuild {
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
 pub struct BasicBuildInfo {
-    pub version: Version, // BuildInfo Version format: [major].[minor].[patch]-[pre]+[build].[hash]
+    pub version: Version, // BuildInfo Version format: <major>.<minor>.<patch>[-pre][+build][.hash]
     pub commit_dt: DateTime<Utc>,
 }
 
 impl BasicBuildInfo {
-    fn new(version: Version, commit_date: DateTime<Utc>) -> Self {
-        let mut s = Self {
-            version,
-            commit_dt: commit_date,
-        };
-
-        let v_str = s.version.to_string();
-        if s.branch() == Some("stable") && LTS_TAGS.iter().any(|t| v_str.contains(t)) {
-            s = s.with_branch("lts").unwrap();
-        }
-
-        s
-    }
-
-    pub fn with_branch(mut self, branch: &str) -> Result<Self, semver::Error> {
-        self.version.pre = Prerelease::new(&format![
+    pub fn with_branch(self, branch: &str) -> Result<Self, semver::Error> {
+        let mut s = self.clone();
+        s.version.pre = Prerelease::new(&format![
             "{}.{}",
             branch,
             &self.build_hash().unwrap_or("fffffffff")
         ])?;
-        Ok(self)
+        Ok(s)
     }
-    pub fn with_build_hash(mut self, hash: &str) -> Result<Self, semver::Error> {
-        self.version.pre =
-            Prerelease::new(&format!["{}.{}", &self.branch().unwrap_or("null"), hash])?;
-        Ok(self)
+
+    pub fn with_build_hash(self, hash: &str) -> Result<Self, semver::Error> {
+        let mut s = self.clone();
+        s.version.pre = Prerelease::new(&format!["{}.{}", &self.branch().unwrap_or("null"), hash])?;
+        Ok(s)
     }
 }
 
@@ -183,17 +171,7 @@ impl BlendBuild for BasicBuildInfo {
         match self.branch().unwrap_or("null") {
             "lts" => "LTS".to_string(),
             "patch" | "experimental" | "daily" => self.version.pre.to_string(),
-            x => {
-                if !self.version.pre.is_empty() {
-                    if self.version.pre.starts_with("rc") {
-                        format!["Release Candidate {}", &self.version.pre[2..]]
-                    } else {
-                        titlecase(&self.version.pre)
-                    }
-                } else {
-                    titlecase(x)
-                }
-            }
+            x => x.to_string(),
         }
     }
 }
@@ -202,7 +180,9 @@ impl BlendBuild for BasicBuildInfo {
 pub struct LocalBuildInfo {
     pub info: BasicBuildInfo,
     pub is_favorited: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_exe: Option<String>,
 }
 
@@ -229,13 +209,66 @@ pub struct LocalBlendBuild {
 }
 
 impl LocalBlendBuild {
-    pub fn read(path: &Path) -> Result<Self, io::Error> {
-        let file = File::open(path)?;
-        let lis: BuildInfoSpec = serde_json::from_reader(file)?;
+    pub fn read(file_or_folder: &Path) -> Result<Self, io::Error> {
+        if file_or_folder
+            .file_name()
+            .is_some_and(|name| name == ".build_info")
+        {
+            Self::read_exact(file_or_folder)
+        } else {
+            Self::read_exact(&file_or_folder.join(".build_info"))
+        }
+    }
+    pub fn read_exact(filepath: &Path) -> Result<Self, io::Error> {
+        let file = File::open(filepath)?;
+        let bis: BuildInfoSpec = serde_json::from_reader(file)?;
 
         Ok(Self {
-            folder: path.parent().unwrap().into(),
-            info: lis.metadata,
+            folder: filepath.parent().unwrap().into(),
+            info: bis.metadata,
+        })
+    }
+
+    pub fn generate_from_exe(executable: &Path) -> io::Result<LocalBlendBuild> {
+        let build_path = executable.parent().unwrap();
+
+        get_info_from_blender(executable).and_then(|info| match info {
+            CollectedInfo {
+                commit_dt: Some(commit_dt),
+                build_hash,
+                branch,
+                subversion: Some(v),
+                custom_name,
+            } => {
+                let mut basic_info = BasicBuildInfo {
+                    version: v,
+                    commit_dt,
+                };
+                if let Some(hash) = build_hash {
+                    basic_info = basic_info.with_build_hash(&hash).unwrap()
+                };
+                if let Some(branch) = branch {
+                    basic_info = basic_info.with_branch(&branch).unwrap();
+                }
+
+                let local_info = LocalBuildInfo {
+                    info: basic_info,
+                    is_favorited: false,
+                    custom_name: custom_name,
+                    custom_exe: None,
+                };
+
+                let local_build = LocalBlendBuild {
+                    folder: build_path.to_path_buf(),
+                    info: local_info,
+                };
+
+                Ok(local_build)
+            }
+            _ => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Could not get all necessary info from blender",
+            )),
         })
     }
 
@@ -243,10 +276,10 @@ impl LocalBlendBuild {
         self.write_to(self.folder.join(".build_info"))
     }
 
-    pub fn write_to(&self, path: PathBuf) -> Result<(), io::Error> {
+    pub fn write_to(&self, filepath: PathBuf) -> Result<(), io::Error> {
         let data = serde_json::to_string(&BuildInfoSpec::from(self.info.clone())).unwrap();
 
-        let mut file = File::create(path)?;
+        let mut file = File::create(filepath)?;
         file.write_all(data.as_bytes())?;
 
         Ok(())
@@ -254,14 +287,14 @@ impl LocalBlendBuild {
 }
 
 #[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
-pub struct LinkedBlendBuild {
+pub struct RemoteBlendBuild {
     pub link: String,
     pub info: BasicBuildInfo,
 }
 
 pub struct ParseError;
 
-impl LinkedBlendBuild {
+impl RemoteBlendBuild {
     fn parse(link: String, info: BasicBuildInfo) -> Result<Self, ParseError> {
         match Url::parse(&link) {
             // Make sure `link` is a valid URL
