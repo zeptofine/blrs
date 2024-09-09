@@ -257,7 +257,7 @@ impl LocalBlendBuild {
                 let local_info = LocalBuildInfo {
                     info: basic_info,
                     is_favorited: false,
-                    custom_name: custom_name,
+                    custom_name,
                     custom_exe: None,
                     custom_env: None,
                 };
