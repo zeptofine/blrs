@@ -1,17 +1,19 @@
 [package]
 name = "blrs"
 version = "0.1.0"
+authors = ["Erin MacDonald <zeptofine@gmail.com>"]
 edition = "2021"
+
 
 [dependencies]
 
 # downloading Blender builds from builders
-reqwest = "0.12.5"
+reqwest = { version = "0.12.5" }
+tokio = { version = "1.40.0", features = ["full"] }
 
 # .blend compressions
 flate2 = { version = "1.0.31", optional = true }
 zstd = { version = "0.13.2", optional = true }
-
 
 # parsing build info
 regex = "1.10.6"
@@ -20,9 +22,7 @@ serde_json = "1.0.124"
 chrono = { version = "0.4.38", features = ["serde"] }
 semver = { version = "1.0.23", features = ["serde"] }
 
-# Helpers
-uuid = "1.10.0"
-directories = "5.0.1"
+# configuration Saving/Loading
 figment = { version = "0.10.19", features = [
     "env",
     "json",
@@ -30,12 +30,26 @@ figment = { version = "0.10.19", features = [
     "serde_json",
     "toml",
 ] }
+
+# async
+async-std = "1.13.0"
+
+# Helpers
+uuid = { version = "1.10.0", features = ["v4", "fast-rng"] }
+directories = "5.0.1"
 which = { version = "6.0.3", features = ["tracing"] }
+parking_lot = { version = "0.12.3" }
+log = "0.4.22"
+sha2 = "0.10.8"
+hex = "0.4.3"
 
 
 [features]
+default = ["zstd", "gzip"]
+
 zstd = ["dep:zstd"]
 gzip = ["dep:flate2"]
+# fetching = ["dep:reqwest", "dep:tokio"]
 
 [profile.release]
 lto = "fat"
