@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
-use blrs::info::LocalBlendBuild;
+use blrs::info::LocalBuild;
 
-fn main() {
-    println!("Hello, world!");
+#[tokio::main]
+async fn main() {}
 
+pub fn test_reading() {
     let daily_builds_path = PathBuf::from("/mnt/Bigass/Blender/linux-builds/daily/");
     println!["Reading builds..."];
-
-    let builds: Vec<LocalBlendBuild> = daily_builds_path
+    let builds: Vec<LocalBuild> = daily_builds_path
         .read_dir()
         .unwrap()
         .filter_map(|folder| {
@@ -21,7 +21,7 @@ fn main() {
                 let full_path = daily_builds_path.join(&folder_path);
                 let build_info_path = &full_path.join(".build_info");
                 println!["{:?}", build_info_path];
-                match LocalBlendBuild::read_exact(build_info_path) {
+                match LocalBuild::read_exact(build_info_path) {
                     Ok(build) => {
                         println!["Read build: {:#?}", &build];
 
@@ -32,7 +32,7 @@ fn main() {
                         // Read the build to generate a LocalBlendBuild
                         println!["Attempting to read the build for information"];
                         let executable = full_path.join("blender");
-                        let local_build = LocalBlendBuild::generate_from_exe(&executable)
+                        let local_build = LocalBuild::generate_from_exe(&executable)
                             .inspect_err(|e| println!("Error: {:?}", e));
 
                         match local_build {

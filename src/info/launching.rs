@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env::consts::OS, path::PathBuf};
 
-use super::LocalBlendBuild;
+use super::LocalBuild;
 
 #[derive(Clone, Debug, Default)]
 pub enum BlendLaunchTarget {
@@ -100,7 +100,7 @@ impl LaunchArguments {
     }
 
     /// Resolves the launching arguments and creates a tuple with the executable, arguments, and environment variables
-    pub fn assemble(self, lb: &LocalBlendBuild) -> Result<GeneratedParams, ArgGenerationError> {
+    pub fn assemble(self, lb: &LocalBuild) -> Result<GeneratedParams, ArgGenerationError> {
         let blender = lb.folder.join(
             lb.info
                 .custom_exe
@@ -154,31 +154,20 @@ impl LaunchArguments {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        path::{Path, PathBuf},
-        sync::LazyLock,
-        time::SystemTime,
-    };
+    use std::{path::PathBuf, sync::LazyLock, time::SystemTime};
 
     use chrono::DateTime;
-    use semver::{BuildMetadata, Prerelease, Version};
 
     use crate::info::{
-        build_info::LocalBuildInfo,
+        build_info::{LocalBuildInfo, VerboseVersion},
         launching::{BlendLaunchTarget, GeneratedParams, LaunchArguments, OSLaunchTarget},
-        BasicBuildInfo, LocalBlendBuild,
+        BasicBuildInfo, LocalBuild,
     };
-    const TEST_BUILD: LazyLock<LocalBlendBuild> = LazyLock::new(|| LocalBlendBuild {
+    const TEST_BUILD: LazyLock<LocalBuild> = LazyLock::new(|| LocalBuild {
         folder: PathBuf::from("blender/"),
         info: LocalBuildInfo {
             info: BasicBuildInfo {
-                version: Version {
-                    major: 4,
-                    minor: 3,
-                    patch: 0,
-                    pre: Prerelease::EMPTY,
-                    build: BuildMetadata::EMPTY,
-                },
+                ver: VerboseVersion::new(4, 3, 0, None, None, None),
                 commit_dt: DateTime::from(SystemTime::now()),
             },
             is_favorited: false,

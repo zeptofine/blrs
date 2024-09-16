@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fs::File,
+    hash::Hash,
     io::{self, Write},
     path::{Path, PathBuf},
     str::FromStr,
@@ -9,7 +10,6 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use regex::Regex;
-use reqwest::Url;
 use semver::{BuildMetadata, Prerelease, Version};
 use serde::{Deserialize, Serialize};
 
@@ -90,89 +90,151 @@ pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
         None => None,
     }
 }
+pub trait BlendBuild: Sized {
+    fn branch(&self) -> &str;
+    fn with_branch(self, branch: Option<&str>) -> Result<Self, semver::Error>;
 
-pub trait BlendBuild {
-    fn branch(&self) -> Option<&str>;
-    fn build_hash(&self) -> Option<&str>;
+    fn build_hash(&self) -> &str;
+    fn with_build_hash(self, hash: Option<&str>) -> Result<Self, semver::Error>;
 
     fn display_version(&self) -> String;
     fn display_label(&self) -> String;
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
-pub struct BasicBuildInfo {
-    pub version: Version, // BuildInfo Version format: <major>.<minor>.<patch>[-pre][+build][.hash]
-    pub commit_dt: DateTime<Utc>,
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+pub struct VerboseVersion {
+    pub v: Version,
+    hash_split: usize,
+} // format: <major>.<minor>.<patch>[-pre][+build][.hash]
+
+impl Default for VerboseVersion {
+    fn default() -> Self {
+        Self::new(0, 0, 0, None, None, None)
+    }
 }
 
-impl BasicBuildInfo {
-    pub fn with_branch(self, branch: &str) -> Result<Self, semver::Error> {
-        let mut s = self.clone();
-        s.version.pre = Prerelease::new(&format![
-            "{}.{}",
-            branch,
-            &self.build_hash().unwrap_or("fffffffff")
-        ])?;
-        Ok(s)
+impl From<Version> for VerboseVersion {
+    fn from(value: Version) -> Self {
+        // Split the build metadata into the build and hash
+        let build = value.build;
+
+        let (build, hash) = build.split_once('.').unwrap_or(("null", "ffffffff"));
+        let hash_split = build.len();
+        let metadata = BuildMetadata::new(&format!["{}.{}", build, hash]).unwrap_or_default();
+
+        Self {
+            v: Version {
+                build: metadata,
+                ..value
+            },
+            hash_split,
+        }
+    }
+}
+
+impl VerboseVersion {
+    pub fn new(
+        major: u64,
+        minor: u64,
+        patch: u64,
+        pre: Option<&str>,
+        build: Option<&str>,
+        hash: Option<&str>,
+    ) -> Self {
+        let pre = pre
+            .and_then(|p| Prerelease::new(p).ok())
+            .unwrap_or_default();
+        let build = build.unwrap_or("null");
+        let hash = hash.unwrap_or("ffffffff");
+
+        let hash_split = build.len();
+
+        let build = BuildMetadata::new(&format!["{}.{}", build, hash]).unwrap_or_default();
+
+        Self {
+            v: Version {
+                major,
+                minor,
+                patch,
+                pre,
+                build,
+            },
+            hash_split,
+        }
+    }
+}
+
+impl BlendBuild for VerboseVersion {
+    fn with_branch(self, branch: Option<&str>) -> Result<Self, semver::Error> {
+        let branch = branch.unwrap_or("null");
+        let hash_split = branch.len();
+
+        Ok(Self {
+            v: Version {
+                build: BuildMetadata::new(&format!["{}.{}", branch, self.build_hash()])?,
+                ..self.v
+            },
+            hash_split,
+        })
     }
 
-    pub fn with_build_hash(self, hash: &str) -> Result<Self, semver::Error> {
-        let mut s = self.clone();
-        s.version.pre = Prerelease::new(&format!["{}.{}", &self.branch().unwrap_or("null"), hash])?;
-        Ok(s)
+    fn with_build_hash(self, hash: Option<&str>) -> Result<Self, semver::Error> {
+        let hash = hash.unwrap_or("ffffffff");
+
+        Ok(Self {
+            v: Version {
+                build: BuildMetadata::new(&format!["{}.{}", self.branch(), hash])?,
+                ..self.v
+            },
+            hash_split: self.hash_split,
+        })
     }
+
+    fn branch(&self) -> &str {
+        &self.v.build[..self.hash_split]
+    }
+
+    fn build_hash(&self) -> &str {
+        // &self.v.build
+        &self.v.build[self.hash_split + 1..]
+    }
+
+    fn display_version(&self) -> String {
+        let v = &self.v;
+        if *v < OLDVER_CUTOFF {
+            format!["{}.{}{}", v.major, v.minor, v.patch]
+        } else {
+            format!["{}.{}.{}", v.major, v.minor, v.patch]
+        }
+    }
+
+    fn display_label(&self) -> String {
+        match self.branch() {
+            "lts" => "LTS".to_string(),
+            "patch" | "experimental" | "daily" => {
+                let prerelease = self.v.pre.to_string();
+                if !prerelease.is_empty() {
+                    prerelease
+                } else {
+                    self.branch().to_string()
+                }
+            }
+            x => x.to_string(),
+        }
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
+pub struct BasicBuildInfo {
+    pub ver: VerboseVersion,
+    pub commit_dt: DateTime<Utc>,
 }
 
 impl Default for BasicBuildInfo {
     fn default() -> Self {
         BasicBuildInfo {
-            version: Version::parse("0.1.0").unwrap(),
+            ver: VerboseVersion::default(),
             commit_dt: Utc::now(),
-        }
-    }
-}
-
-impl BlendBuild for BasicBuildInfo {
-    fn branch(&self) -> Option<&str> {
-        let metadata = &self.version.build;
-        metadata.chars().rev().enumerate().find_map(|(i, c)| {
-            if c == '.' {
-                Some(&metadata[..metadata.len() - (i + 1)])
-            } else {
-                None
-            }
-        })
-    }
-
-    fn build_hash(&self) -> Option<&str> {
-        let metadata = &self.version.build;
-        metadata.chars().rev().enumerate().find_map(|(i, c)| {
-            if c == '.' {
-                Some(&metadata[i..])
-            } else {
-                None
-            }
-        })
-    }
-    fn display_version(&self) -> String {
-        if self.version < OLDVER_CUTOFF {
-            format![
-                "{}.{}{}",
-                self.version.major, self.version.minor, self.version.pre
-            ]
-        } else {
-            format![
-                "{}.{}.{}",
-                self.version.major, self.version.minor, self.version.patch
-            ]
-        }
-    }
-
-    fn display_label(&self) -> String {
-        match self.branch().unwrap_or("null") {
-            "lts" => "LTS".to_string(),
-            "patch" | "experimental" | "daily" => self.version.pre.to_string(),
-            x => x.to_string(),
         }
     }
 }
@@ -206,12 +268,12 @@ impl From<LocalBuildInfo> for BuildInfoSpec {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct LocalBlendBuild {
+pub struct LocalBuild {
     pub folder: PathBuf,
     pub info: LocalBuildInfo,
 }
 
-impl LocalBlendBuild {
+impl LocalBuild {
     pub fn read(file_or_folder: &Path) -> Result<Self, io::Error> {
         if file_or_folder
             .file_name()
@@ -232,7 +294,7 @@ impl LocalBlendBuild {
         })
     }
 
-    pub fn generate_from_exe(executable: &Path) -> io::Result<LocalBlendBuild> {
+    pub fn generate_from_exe(executable: &Path) -> io::Result<LocalBuild> {
         let build_path = executable.parent().unwrap();
 
         get_info_from_blender(executable).and_then(|info| match info {
@@ -243,15 +305,27 @@ impl LocalBlendBuild {
                 subversion: Some(v),
                 custom_name,
             } => {
-                let mut basic_info = BasicBuildInfo {
-                    version: v,
-                    commit_dt,
-                };
+                let v = VerboseVersion::new(
+                    v.major,
+                    v.minor,
+                    v.patch,
+                    match &branch {
+                        Some(s) => Some(s.as_str()),
+                        None => None,
+                    },
+                    None,
+                    match &build_hash {
+                        Some(s) => Some(s.as_str()),
+                        None => None,
+                    },
+                );
+
+                let mut basic_info = BasicBuildInfo { ver: v, commit_dt };
                 if let Some(hash) = build_hash {
-                    basic_info = basic_info.with_build_hash(&hash).unwrap()
+                    basic_info.ver = basic_info.ver.with_build_hash(Some(&hash)).unwrap()
                 };
                 if let Some(branch) = branch {
-                    basic_info = basic_info.with_branch(&branch).unwrap();
+                    basic_info.ver = basic_info.ver.with_branch(Some(&branch)).unwrap()
                 }
 
                 let local_info = LocalBuildInfo {
@@ -262,7 +336,7 @@ impl LocalBlendBuild {
                     custom_env: None,
                 };
 
-                let local_build = LocalBlendBuild {
+                let local_build = LocalBuild {
                     folder: build_path.to_path_buf(),
                     info: local_info,
                 };
@@ -290,35 +364,15 @@ impl LocalBlendBuild {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
-pub struct RemoteBlendBuild {
-    pub link: String,
-    pub info: BasicBuildInfo,
-}
-
-pub struct ParseError;
-
-impl RemoteBlendBuild {
-    fn parse(link: String, info: BasicBuildInfo) -> Result<Self, ParseError> {
-        match Url::parse(&link) {
-            // Make sure `link` is a valid URL
-            Ok(_url) => Ok(Self { link, info }),
-            Err(_) => Err(ParseError),
-        }
-    }
-
-    fn url(&self) -> Url {
-        Url::parse(&self.link).unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::LazyLock;
 
     use semver::{BuildMetadata, Prerelease, Version};
 
-    use crate::info::parse_blender_ver;
+    use crate::{info::parse_blender_ver, BlendBuild};
+
+    use super::VerboseVersion;
     const TEST_STRINGS: LazyLock<[(&str, Version); 10]> = LazyLock::new(|| {
         [
             ("Blender1.0", Version::parse("1.0.0").unwrap()),
@@ -370,7 +424,16 @@ mod tests {
         TEST_STRINGS.iter().for_each(|(s, v)| {
             let estimated_version = parse_blender_ver(s, true);
             println!["{:?} -> {:?}", s, estimated_version];
-            assert!(estimated_version.unwrap() == *v);
+            assert_eq!(estimated_version.unwrap(), *v);
         })
+    }
+
+    #[test]
+    fn test_blend_build_methods() {
+        let ver = VerboseVersion::default();
+
+        println!["{:?}", ver];
+        assert_eq!(ver.branch(), "null");
+        assert_eq!(ver.build_hash(), "ffffffff");
     }
 }

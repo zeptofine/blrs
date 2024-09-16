@@ -154,7 +154,7 @@ impl From<String> for VersionSearchQuery {
     fn from(value: String) -> Self {
         let captures = VERSION_SEARCH_REGEX.captures(&value);
 
-        if let None = captures {
+        if captures.is_none() {
             return Self::default();
         }
 
