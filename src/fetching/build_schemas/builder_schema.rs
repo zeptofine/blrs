@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::fmt::Debug;
 
 use chrono::DateTime;
 use semver::{BuildMetadata, Prerelease, Version};
@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct RemoteBuildSchema {
+pub struct BlenderBuildSchema {
     pub app: String,
     pub url: String,
     pub version: String,
@@ -26,8 +26,8 @@ pub struct RemoteBuildSchema {
     pub release_cycle: String, // stable,alpha,etc.
 }
 
-impl From<RemoteBuildSchema> for RemoteBuild {
-    fn from(val: RemoteBuildSchema) -> Self {
+impl From<BlenderBuildSchema> for RemoteBuild {
+    fn from(val: BlenderBuildSchema) -> Self {
         RemoteBuild {
             link: val.url.clone(),
             info: BasicBuildInfo {
@@ -38,7 +38,7 @@ impl From<RemoteBuildSchema> for RemoteBuild {
     }
 }
 
-impl RemoteBuildSchema {
+impl BlenderBuildSchema {
     pub fn full_version(&self) -> Version {
         Version {
             pre: Prerelease::new(&self.release_cycle).unwrap(),
@@ -53,44 +53,4 @@ impl RemoteBuildSchema {
             ..parse_blender_ver(&self.version, false).unwrap()
         }
     }
-}
-#[derive(Debug, Default)]
-pub struct Sha256Pair {
-    pub sha256: Option<RemoteBuildSchema>,
-    pub build: Option<RemoteBuildSchema>,
-}
-
-pub fn get_sha256_pairs(lst: Vec<RemoteBuildSchema>) -> HashMap<Version, Sha256Pair> {
-    let mut map: HashMap<Version, Sha256Pair> = HashMap::new();
-
-    for schema in lst {
-        let ver = schema.full_version_and_platform();
-
-        let entry = map.remove(&ver);
-        if schema.file_extension == "sha256" {
-            map.insert(
-                ver,
-                Sha256Pair {
-                    sha256: Some(schema),
-                    build: match entry {
-                        Some(e) => e.build,
-                        None => None,
-                    },
-                },
-            );
-        } else {
-            map.insert(
-                ver,
-                Sha256Pair {
-                    sha256: match entry {
-                        Some(e) => e.sha256,
-                        None => None,
-                    },
-                    build: Some(schema),
-                },
-            );
-        }
-    }
-
-    map
 }

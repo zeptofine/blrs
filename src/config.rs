@@ -10,9 +10,14 @@ use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
+use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 
-use crate::fetching::request_builder::{self, random_ua, SerialProxyOptions};
+use crate::fetching::{
+    authentication::GithubAuthentication,
+    build_repository::{BuildRepo, DEFAULT_REPOS},
+    request_builder::{random_ua, ProxyOptions, SerialProxyOptions},
+};
 
 pub static PROJECT_DIRS: LazyLock<ProjectDirs> =
     LazyLock::new(|| ProjectDirs::from("", "zeptofine", "blrs").unwrap());
@@ -30,13 +35,10 @@ pub static DEFAULT_REPOS_FOLDER: LazyLock<PathBuf> =
 /// 4 hours
 pub static FETCH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BLRSPaths {
     pub library: PathBuf,
     pub remote_repos: PathBuf,
-    pub daily: Option<PathBuf>,
-    pub experimental_path: Option<PathBuf>,
-    pub patch_path: Option<PathBuf>,
 }
 
 impl Default for BLRSPaths {
@@ -44,37 +46,18 @@ impl Default for BLRSPaths {
         Self {
             library: DEFAULT_LIBRARY_FOLDER.clone(),
             remote_repos: DEFAULT_REPOS_FOLDER.clone(),
-            daily: None,
-            experimental_path: None,
-            patch_path: None,
         }
     }
 }
 
-impl BLRSPaths {
-    pub fn daily(&self) -> PathBuf {
-        self.daily.clone().unwrap_or(self.library.join("daily"))
-    }
-
-    pub fn experimental(&self) -> PathBuf {
-        self.experimental_path
-            .clone()
-            .unwrap_or(self.library.join("experimental"))
-    }
-
-    pub fn patch(&self) -> PathBuf {
-        self.patch_path
-            .clone()
-            .unwrap_or(self.library.join("patch"))
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct BLRSConfig {
     pub last_time_checked: Option<DateTime<Utc>>,
     pub paths: BLRSPaths,
     pub user_agent: String,
-    pub proxy_options: SerialProxyOptions,
+    pub repos: Vec<BuildRepo>,
+    pub proxy_options: Option<SerialProxyOptions>,
+    pub gh_auth: Option<GithubAuthentication>,
 }
 
 impl Default for BLRSConfig {
@@ -83,7 +66,9 @@ impl Default for BLRSConfig {
             last_time_checked: Default::default(),
             paths: Default::default(),
             user_agent: random_ua(),
+            repos: DEFAULT_REPOS.clone().into_iter().collect(),
             proxy_options: Default::default(),
+            gh_auth: Default::default(),
         }
     }
 }
@@ -101,7 +86,34 @@ impl BLRSConfig {
             ))
     }
 
-    pub fn client_builder(&self) -> reqwest::ClientBuilder {
-        request_builder::builder(&self.user_agent, self.proxy_options.clone().try_into().ok())
+    pub fn client_builder(&self, use_gh_auth: bool) -> reqwest::ClientBuilder {
+        let user_agent: &str = &self.user_agent;
+        let proxy: Option<ProxyOptions> = self
+            .proxy_options
+            .clone()
+            .and_then(|opts| opts.try_into().ok());
+        let mut r = reqwest::ClientBuilder::new().user_agent(user_agent);
+
+        r = match (use_gh_auth, &self.gh_auth) {
+            (true, Some(auth)) => {
+                let mut auth_value = reqwest::header::HeaderValue::from_str(&auth.token).unwrap();
+                auth_value.set_sensitive(true);
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert(reqwest::header::AUTHORIZATION, auth_value);
+                r.default_headers(headers)
+            }
+            _ => r,
+        };
+
+        r = match proxy {
+            None => r,
+            Some(options) => r.proxy(
+                Proxy::all(options.url)
+                    .unwrap()
+                    .basic_auth(&options.user, &options.password),
+            ),
+        };
+
+        r
     }
 }

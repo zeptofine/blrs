@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Default)]
 pub struct SerialProxyOptions {
-    url: String,
-    user: String,
-    password: String,
+    pub url: String,
+    pub user: String,
+    pub password: String,
 }
 
 impl TryInto<ProxyOptions> for SerialProxyOptions {
@@ -24,9 +24,9 @@ impl TryInto<ProxyOptions> for SerialProxyOptions {
 }
 
 pub struct ProxyOptions {
-    url: Url,
-    user: String,
-    password: String,
+    pub url: Url,
+    pub user: String,
+    pub password: String,
 }
 
 pub fn random_ua() -> String {

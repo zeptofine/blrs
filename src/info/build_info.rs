@@ -34,8 +34,26 @@ static MATCHERS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     .collect()
 });
 
-static INITIAL_CLEANER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?:blender-)(\d.*)(?:-linux|-windows)").unwrap());
+static INITIAL_CLEANER1: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:blender-?|Blender|BLENDER|v)-?(\d.*)").unwrap());
+
+pub fn simple_clean(s: &str) -> &str {
+    let mut s = s;
+
+    let c = INITIAL_CLEANER1.captures(s);
+    if let Some(c) = c {
+        s = c.get(1).unwrap().as_str();
+    }
+
+    if let Some(i) = s.find("-windows") {
+        s = &s[..i];
+    }
+    if let Some(i) = s.find("-linux") {
+        s = &s[..i];
+    }
+
+    s
+}
 
 const OLDVER_CUTOFF: Version = Version {
     major: 2,
@@ -53,14 +71,12 @@ pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
         return Some(v);
     }
 
-    let c = INITIAL_CLEANER.captures(s);
+    s = simple_clean(s);
 
-    if let Some(c) = c {
-        s = c.get(1).unwrap().as_str();
-        if let Ok(v) = Version::parse(s) {
-            return Some(v);
-        }
+    if let Ok(v) = Version::parse(s) {
+        return Some(v);
     }
+
     let g = if search {
         MATCHERS.iter().find_map(|re| re.captures(s))
     } else {
@@ -78,7 +94,6 @@ pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
                 .parse::<u64>()
                 .ok()?;
             let mut v = Version::new(major, minor, patch);
-
             v.pre = match g.name("pre") {
                 None => Prerelease::EMPTY,
                 Some(m) => Prerelease::from_str(&m.as_str().to_lowercase()).unwrap(),
@@ -373,7 +388,7 @@ mod tests {
     use crate::{info::parse_blender_ver, BlendBuild};
 
     use super::VerboseVersion;
-    const TEST_STRINGS: LazyLock<[(&str, Version); 10]> = LazyLock::new(|| {
+    const TEST_STRINGS: LazyLock<[(&str, Version); 11]> = LazyLock::new(|| {
         [
             ("Blender1.0", Version::parse("1.0.0").unwrap()),
             (
@@ -415,6 +430,7 @@ mod tests {
             ("2.79", Version::parse("2.79.0").unwrap()),
             ("2.79rc1", Version::parse("2.79.0-rc1").unwrap()),
             ("2.79b", Version::parse("2.79.0-b").unwrap()),
+            ("v4.2.2", Version::parse("4.2.2").unwrap()),
         ]
     });
 

@@ -1,8 +1,52 @@
-use std::{fs::File, io::Read, path::Path, string::FromUtf8Error};
+use std::{collections::HashMap, fs::File, io::Read, path::Path, string::FromUtf8Error};
 
 use hex::ToHex;
 use log::debug;
+use semver::Version;
 use sha2::{Digest, Sha256};
+
+use super::build_schemas::builder_schema::BlenderBuildSchema;
+
+#[derive(Debug, Default)]
+pub struct Sha256Pair {
+    pub sha256: Option<BlenderBuildSchema>,
+    pub build: Option<BlenderBuildSchema>,
+}
+
+pub fn get_sha256_pairs(lst: Vec<BlenderBuildSchema>) -> HashMap<Version, Sha256Pair> {
+    let mut map: HashMap<Version, Sha256Pair> = HashMap::new();
+
+    for schema in lst {
+        let ver = schema.full_version_and_platform();
+
+        let entry = map.remove(&ver);
+        if schema.file_extension == "sha256" {
+            map.insert(
+                ver,
+                Sha256Pair {
+                    sha256: Some(schema),
+                    build: match entry {
+                        Some(e) => e.build,
+                        None => None,
+                    },
+                },
+            );
+        } else {
+            map.insert(
+                ver,
+                Sha256Pair {
+                    sha256: match entry {
+                        Some(e) => e.sha256,
+                        None => None,
+                    },
+                    build: Some(schema),
+                },
+            );
+        }
+    }
+
+    map
+}
 
 #[derive(Debug)]
 pub enum ParseError {
