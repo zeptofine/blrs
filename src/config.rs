@@ -26,9 +26,36 @@ pub fn ensure_config_folder_exists() -> Result<(), std::io::Error> {
     std::fs::create_dir_all(PROJECT_DIRS.config_local_dir())
 }
 
+/// Libraries should be structured like this:
+///```txt
+/// builds
+/// |
+/// +-<repo_id>
+/// | |
+/// | +-<individual_build_full_version>
+/// | |  +-<n.n>
+/// | |  +-blender.exe
+/// | |  + ...
+/// | +-<second_build>
+/// | |
+/// | +  ...
+/// |
+/// + ...
+///```
 pub static DEFAULT_LIBRARY_FOLDER: LazyLock<PathBuf> =
     LazyLock::new(|| PROJECT_DIRS.data_dir().to_path_buf().join("builds"));
 
+/// Repos should be structured like this:
+///```md
+/// remote-repos
+/// |
+/// +-<repo_id_0>.json
+/// |
+/// +-<repo_id_1>.json
+/// |
+/// +-<repo_id_2>.json
+/// + ...
+///```
 pub static DEFAULT_REPOS_FOLDER: LazyLock<PathBuf> =
     LazyLock::new(|| PROJECT_DIRS.data_dir().to_path_buf().join("remote-repos"));
 
@@ -96,7 +123,11 @@ impl BLRSConfig {
 
         r = match (use_gh_auth, &self.gh_auth) {
             (true, Some(auth)) => {
-                let mut auth_value = reqwest::header::HeaderValue::from_str(&auth.token).unwrap();
+                let mut auth_value = reqwest::header::HeaderValue::from_str(&format![
+                    "{} {}",
+                    auth.user, auth.token
+                ])
+                .unwrap();
                 auth_value.set_sensitive(true);
                 let mut headers = reqwest::header::HeaderMap::new();
                 headers.insert(reqwest::header::AUTHORIZATION, auth_value);

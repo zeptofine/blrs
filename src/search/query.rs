@@ -149,13 +149,17 @@ pub struct VersionSearchQuery {
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
 }
 
-impl From<String> for VersionSearchQuery {
-    /// Tries to parse the query from a string, using the version search regex specified above
-    fn from(value: String) -> Self {
-        let captures = VERSION_SEARCH_REGEX.captures(&value);
+pub enum FromError {
+    CannotCaptureViaRegex,
+}
 
+impl TryFrom<String> for VersionSearchQuery {
+    type Error = FromError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let captures = VERSION_SEARCH_REGEX.captures(&value);
         if captures.is_none() {
-            return Self::default();
+            return Err(FromError::CannotCaptureViaRegex);
         }
 
         let captures = captures.unwrap();
@@ -165,8 +169,9 @@ impl From<String> for VersionSearchQuery {
                 OrdPlacement::from(mi.as_str()),
                 OrdPlacement::from(pa.as_str()),
             ),
-            _ => return Self::default(),
+            _ => return Err(FromError::CannotCaptureViaRegex),
         };
+
         let branch = captures
             .get(4)
             .map(|m| WildPlacement::from(m.as_str()))
@@ -181,13 +186,13 @@ impl From<String> for VersionSearchQuery {
             .map(|m| OrdPlacement::from(m.as_str()))
             .unwrap_or_default();
 
-        Self {
+        Ok(Self {
             major,
             minor,
             patch,
             branch,
             build_hash,
             commit_dt,
-        }
+        })
     }
 }

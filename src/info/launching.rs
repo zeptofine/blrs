@@ -40,7 +40,7 @@ pub enum OSLaunchTarget {
 }
 
 impl OSLaunchTarget {
-    fn try_default() -> Option<Self> {
+    pub fn try_default() -> Option<Self> {
         match OS {
             "windows" => Some(Self::Windows { no_console: true }),
             "linux" => Some(Self::Linux),
@@ -49,7 +49,7 @@ impl OSLaunchTarget {
         }
     }
 
-    fn exe_name(&self) -> &'static str {
+    pub fn exe_name(&self) -> &'static str {
         match self {
             OSLaunchTarget::Linux => "blender",
             OSLaunchTarget::Windows { no_console } => match no_console {
@@ -166,7 +166,7 @@ mod tests {
     const TEST_BUILD: LazyLock<LocalBuild> = LazyLock::new(|| LocalBuild {
         folder: PathBuf::from("blender/"),
         info: LocalBuildInfo {
-            info: BasicBuildInfo {
+            basic: BasicBuildInfo {
                 ver: VerboseVersion::new(4, 3, 0, None, None, None),
                 commit_dt: DateTime::from(SystemTime::now()),
             },

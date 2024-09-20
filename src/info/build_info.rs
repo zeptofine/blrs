@@ -55,6 +55,9 @@ pub fn simple_clean(s: &str) -> &str {
     s
 }
 
+/// This describes the first version that adopted the new SemVer compatible
+/// versioning scheme. Before that, it was seemingly arbitrary
+/// with a major version, a minor version, and sometimes an a or a b slapped to the end.
 const OLDVER_CUTOFF: Version = Version {
     major: 2,
     minor: 83,
@@ -128,12 +131,16 @@ impl Default for VerboseVersion {
     }
 }
 
+impl ToString for VerboseVersion {
+    fn to_string(&self) -> String {
+        self.v.to_string()
+    }
+}
+
 impl From<Version> for VerboseVersion {
     fn from(value: Version) -> Self {
         // Split the build metadata into the build and hash
-        let build = value.build;
-
-        let (build, hash) = build.split_once('.').unwrap_or(("null", "ffffffff"));
+        let (build, hash) = value.build.split_once('.').unwrap_or(("null", "ffffffff"));
         let hash_split = build.len();
         let metadata = BuildMetadata::new(&format!["{}.{}", build, hash]).unwrap_or_default();
 
@@ -239,7 +246,7 @@ impl BlendBuild for VerboseVersion {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
 pub struct BasicBuildInfo {
     pub ver: VerboseVersion,
     pub commit_dt: DateTime<Utc>,
@@ -256,7 +263,7 @@ impl Default for BasicBuildInfo {
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct LocalBuildInfo {
-    pub info: BasicBuildInfo,
+    pub basic: BasicBuildInfo,
     pub is_favorited: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_name: Option<String>,
@@ -344,7 +351,7 @@ impl LocalBuild {
                 }
 
                 let local_info = LocalBuildInfo {
-                    info: basic_info,
+                    basic: basic_info,
                     is_favorited: false,
                     custom_name,
                     custom_exe: None,
@@ -388,7 +395,7 @@ mod tests {
     use crate::{info::parse_blender_ver, BlendBuild};
 
     use super::VerboseVersion;
-    const TEST_STRINGS: LazyLock<[(&str, Version); 11]> = LazyLock::new(|| {
+    const TEST_STRINGS: LazyLock<[(&str, Version); 12]> = LazyLock::new(|| {
         [
             ("Blender1.0", Version::parse("1.0.0").unwrap()),
             (
@@ -414,6 +421,16 @@ mod tests {
                     patch: 21,
                     pre: Prerelease::new("stable").unwrap(),
                     build: BuildMetadata::new("v33.e016c21db151").unwrap(),
+                },
+            ),
+            (
+                "blender-4.3.0-alpha+daily.d9c941a464e7",
+                Version {
+                    major: 4,
+                    minor: 3,
+                    patch: 0,
+                    pre: Prerelease::new("alpha").unwrap(),
+                    build: BuildMetadata::new("daily.d9c941a464e7").unwrap(),
                 },
             ),
             (

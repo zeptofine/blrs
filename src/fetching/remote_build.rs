@@ -7,16 +7,16 @@ use reqwest::Url;
 #[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteBuild {
     pub link: String,
-    pub info: BasicBuildInfo,
+    pub basic: BasicBuildInfo,
 }
 
 pub struct ParseError;
 
 impl RemoteBuild {
-    pub fn parse(link: String, info: BasicBuildInfo) -> Result<Self, ParseError> {
+    pub fn parse(link: String, basic: BasicBuildInfo) -> Result<Self, ParseError> {
         match Url::parse(&link) {
             // Make sure `link` is a valid URL
-            Ok(_url) => Ok(Self { link, info }),
+            Ok(_url) => Ok(Self { link, basic }),
             Err(_) => Err(ParseError),
         }
     }

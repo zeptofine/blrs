@@ -30,7 +30,7 @@ impl From<BlenderBuildSchema> for RemoteBuild {
     fn from(val: BlenderBuildSchema) -> Self {
         RemoteBuild {
             link: val.url.clone(),
-            info: BasicBuildInfo {
+            basic: BasicBuildInfo {
                 ver: VerboseVersion::from(val.full_version()),
                 commit_dt: DateTime::from_timestamp(val.file_mtime as i64, 0).unwrap(),
             },

@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use log::debug;
-use reqwest::{Client, Url};
+use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -75,6 +75,7 @@ pub static DEFAULT_REPOS: LazyLock<[BuildRepo; 3]> = LazyLock::new(|| {
 
 #[derive(Debug)]
 pub enum FetchError {
+    ReturnCode(StatusCode, Option<&'static str>),
     Reqwest(reqwest::Error),
     InvalidResponse,
     FailedToDeserialize,
@@ -112,7 +113,13 @@ pub async fn fetch_repo(
             total_bytes: _,
         }
         | FetcherState::Ready(_, _) => unreachable!(),
-        FetcherState::Finished { response: _, bytes } => {
+        FetcherState::Finished { response, bytes } => {
+            if !response.status().is_success() {
+                return Err(FetchError::ReturnCode(
+                    response.status(),
+                    response.status().canonical_reason(),
+                ));
+            }
             let bytes = bytes.read();
             repo.repo_type.try_serialize(bytes.clone())
         }
