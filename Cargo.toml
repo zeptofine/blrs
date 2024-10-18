@@ -12,8 +12,8 @@ reqwest = { version = "0.12.5" }
 tokio = { version = "1.40.0", features = ["full"] }
 
 # .blend compressions
-flate2 = { version = "1.0.31", optional = true }
-zstd = { version = "0.13.2", optional = true }
+flate2 = { version = "1.0.31" }
+zstd = { version = "0.13.2" }
 
 # parsing build info
 regex = "1.10.6"
@@ -42,14 +42,16 @@ parking_lot = { version = "0.12.3" }
 log = "0.4.22"
 sha2 = "0.10.8"
 hex = "0.4.3"
+itertools = "0.13.0"
+zip = "2.2.0"
 
 
-[features]
-default = ["zstd", "gzip"]
+# [features]
+# default = ["zstd", "gzip"]
 
-zstd = ["dep:zstd"]
-gzip = ["dep:flate2"]
-# fetching = ["dep:reqwest", "dep:tokio"]
+# zstd = ["dep:zstd"]
+# gzip = ["dep:flate2"]
+# # fetching = ["dep:reqwest", "dep:tokio"]
 
 [profile.release]
 lto = "fat"

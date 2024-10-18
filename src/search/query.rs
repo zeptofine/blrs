@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr, sync::LazyLock};
+use std::{fmt::Debug, fmt::Display, str::FromStr, sync::LazyLock};
 
 use chrono::{DateTime, Utc};
 use regex::{Regex, RegexBuilder};
@@ -31,30 +31,51 @@ impl<T: FromStr + PartialEq> From<&str> for WildPlacement<T> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub enum OrdPlacement<T: PartialOrd + PartialEq> {
-    Latest,
     #[default]
+    Latest,
     Any,
     Oldest,
     Exact(T),
 }
 
 impl<T: Ord + PartialOrd + PartialEq> OrdPlacement<T> {
-    pub fn search(&self, values: &[&T]) -> Vec<usize> {
+    pub fn find<'a, F, R>(&self, values: &[&'a T], f: F) -> Vec<&'a R>
+    where
+        F: Fn(usize) -> &'a R,
+    {
         match self {
             OrdPlacement::Latest => {
-                let mut latest_index: Option<usize> = None;
+                let mut latest: Option<&T> = None;
+                let mut all_latest = vec![];
                 for (i, value) in values.iter().enumerate() {
-                    if latest_index.is_none() || value > &values[latest_index.unwrap()] {
-                        latest_index = Some(i);
+                    if latest.is_some_and(|l| &l == value) {
+                        all_latest.push(f(i));
+                    } else if latest.is_some_and(|l| &l < value) | latest.is_none() {
+                        all_latest = vec![f(i)];
+                        latest = Some(value);
                     }
                 }
-                latest_index.map(|i| vec![i]).unwrap_or_default()
+                all_latest
             }
-            OrdPlacement::Any => (0..values.len()).collect(),
-            OrdPlacement::Oldest => todo!(),
-            OrdPlacement::Exact(_) => todo!(),
+            OrdPlacement::Any => (0..values.len()).map(f).collect(),
+            OrdPlacement::Oldest => {
+                let mut oldest: Option<&T> = None;
+                let mut all_oldest = vec![];
+                for (i, value) in values.iter().enumerate() {
+                    if oldest.is_some_and(|l| &l == value) {
+                        all_oldest.push(f(i));
+                    } else if oldest.is_some_and(|l| &l > value) | oldest.is_none() {
+                        all_oldest = vec![f(i)];
+                        oldest = Some(value);
+                    }
+                }
+                all_oldest
+            }
+            OrdPlacement::Exact(t) => (0..values.len())
+                .filter_map(|i| (values[i] == t).then_some(f(i)))
+                .collect(),
         }
     }
 }
@@ -62,10 +83,21 @@ impl<T: Ord + PartialOrd + PartialEq> OrdPlacement<T> {
 impl<T: Display + PartialOrd + PartialEq> Display for OrdPlacement<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&match self {
+            OrdPlacement::Latest => "^".to_string(),
+            OrdPlacement::Any => "*".to_string(),
+            OrdPlacement::Oldest => "-".to_string(),
+            OrdPlacement::Exact(x) => x.to_string(),
+        })
+    }
+}
+
+impl<T: Debug + PartialOrd + PartialEq> Debug for OrdPlacement<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&match self {
             OrdPlacement::Latest => "Latest (^)".to_string(),
             OrdPlacement::Any => "Any (*)".to_string(),
             OrdPlacement::Oldest => "Oldest (-)".to_string(),
-            OrdPlacement::Exact(x) => format!["Exact ({x})"],
+            OrdPlacement::Exact(x) => format!["Exact ({x:?})"],
         })
     }
 }
@@ -149,6 +181,18 @@ pub struct VersionSearchQuery {
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
 }
 
+impl Display for VersionSearchQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            &(format![
+                "{}.{}.{}-{}+{}@{}",
+                self.major, self.minor, self.patch, self.branch, self.build_hash, self.commit_dt
+            ]),
+        )
+    }
+}
+
+#[derive(Debug)]
 pub enum FromError {
     CannotCaptureViaRegex,
 }

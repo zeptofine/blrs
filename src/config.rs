@@ -64,8 +64,16 @@ pub static FETCH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BLRSPaths {
+    /// The path that holds all of the downloaded builds.
     pub library: PathBuf,
+    /// The path that holds all of the repo cache .json files.
     pub remote_repos: PathBuf,
+}
+
+impl BLRSPaths {
+    pub fn path_to_repo(&self, br: &BuildRepo) -> PathBuf {
+        self.library.join(&br.repo_id)
+    }
 }
 
 impl Default for BLRSPaths {

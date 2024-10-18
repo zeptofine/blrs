@@ -1,7 +1,9 @@
 pub mod config;
-// #[cfg(feature = "fetching")]
+pub mod downloading;
+pub mod extraction;
 pub mod fetching;
 pub mod info;
+pub mod repos;
 pub mod search;
 
 pub use config::{BLRSConfig, BLRSPaths};

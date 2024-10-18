@@ -4,6 +4,62 @@ use reqwest::{Client, Response, Url};
 
 use parking_lot::RwLock;
 
+#[inline]
+pub fn fetch(client: Client, url: Url) -> FetcherState {
+    FetcherState::new(client, url)
+}
+pub enum FetchStreamerState {
+    Ready(Client, Url),
+    Downloading {
+        response: Response,
+        last_chunk: Vec<u8>,
+    },
+    Finished {
+        response: Response,
+    },
+    Err(reqwest::Error),
+}
+
+impl FetchStreamerState {
+    #[inline]
+    pub fn new(client: Client, url: Url) -> Self {
+        Self::Ready(client, url)
+    }
+
+    pub async fn advance(self) -> Self {
+        match self {
+            Self::Ready(client, url) => {
+                let response = client.get(url).send().await;
+                match response {
+                    Ok(response) => Self::Downloading {
+                        response,
+                        last_chunk: vec![],
+                    },
+                    Err(e) => Self::Err(e),
+                }
+            }
+            Self::Downloading {
+                mut response,
+                mut last_chunk,
+            } => match response.chunk().await {
+                Ok(Some(bytes)) => {
+                    last_chunk.clear();
+                    last_chunk.extend(bytes);
+
+                    Self::Downloading {
+                        response,
+                        last_chunk,
+                    }
+                }
+                Ok(None) => Self::Finished { response },
+                Err(e) => Self::Err(e),
+            },
+
+            x => x,
+        }
+    }
+}
+
 pub enum FetcherState {
     Ready(Client, Url),
     Downloading {
@@ -19,6 +75,7 @@ pub enum FetcherState {
 }
 
 impl FetcherState {
+    #[inline]
     pub fn new(client: Client, url: Url) -> Self {
         Self::Ready(client, url)
     }
@@ -45,7 +102,7 @@ impl FetcherState {
                     {
                         let mut b = downloaded_bytes.write();
 
-                        b.extend(bytes);
+                        b.extend(bytes.clone());
                     }
 
                     Self::Downloading {

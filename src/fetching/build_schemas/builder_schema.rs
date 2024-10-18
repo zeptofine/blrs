@@ -34,6 +34,9 @@ impl From<BlenderBuildSchema> for RemoteBuild {
                 ver: VerboseVersion::from(val.full_version()),
                 commit_dt: DateTime::from_timestamp(val.file_mtime as i64, 0).unwrap(),
             },
+            platform: Some(val.platform),
+            architecture: Some(val.architecture),
+            file_extension: Some(val.file_extension),
         }
     }
 }

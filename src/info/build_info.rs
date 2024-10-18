@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Display,
     fs::File,
     hash::Hash,
     io::{self, Write},
@@ -131,9 +132,9 @@ impl Default for VerboseVersion {
     }
 }
 
-impl ToString for VerboseVersion {
-    fn to_string(&self) -> String {
-        self.v.to_string()
+impl Display for VerboseVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write![f, "{}", self.v]
     }
 }
 
@@ -261,6 +262,12 @@ impl Default for BasicBuildInfo {
     }
 }
 
+impl Display for BasicBuildInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write![f, "{}", self.ver]
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct LocalBuildInfo {
     pub basic: BasicBuildInfo,
@@ -289,7 +296,7 @@ impl From<LocalBuildInfo> for BuildInfoSpec {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize)]
 pub struct LocalBuild {
     pub folder: PathBuf,
     pub info: LocalBuildInfo,

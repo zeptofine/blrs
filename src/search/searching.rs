@@ -11,7 +11,7 @@ impl<'a> BInfoMatcher<'a> {
         BInfoMatcher { versions }
     }
 
-    pub fn match_all(&self, query: &VersionSearchQuery) -> Vec<&BasicBuildInfo> {
+    pub fn find_all(&self, query: &VersionSearchQuery) -> Vec<&BasicBuildInfo> {
         let vs = self
             .versions
             .iter()
@@ -27,40 +27,32 @@ impl<'a> BInfoMatcher<'a> {
 
         let vs = match query.major {
             OrdPlacement::Any => vs,
-            _ => query
-                .major
-                .search(&(vs.iter().map(|v| &v.ver.v.major).collect::<Vec<_>>()))
-                .into_iter()
-                .map(|i| vs[i])
-                .collect(),
+            _ => query.major.find(
+                &(vs.iter().map(|v| &v.ver.v.major).collect::<Vec<_>>()),
+                |idx| vs[idx],
+            ),
         };
         let vs = match query.minor {
             OrdPlacement::Any => vs,
-            _ => query
-                .minor
-                .search(&(vs.iter().map(|v| &v.ver.v.minor).collect::<Vec<_>>()))
-                .into_iter()
-                .map(|i| vs[i])
-                .collect(),
+            _ => query.minor.find(
+                &(vs.iter().map(|v| &v.ver.v.minor).collect::<Vec<_>>()),
+                |idx| vs[idx],
+            ),
         };
         let vs = match query.patch {
             OrdPlacement::Any => vs,
-            _ => query
-                .patch
-                .search(&(vs.iter().map(|v| &v.ver.v.patch).collect::<Vec<_>>()))
-                .into_iter()
-                .map(|i| vs[i])
-                .collect(),
+            _ => query.patch.find(
+                &(vs.iter().map(|v| &v.ver.v.patch).collect::<Vec<_>>()),
+                |idx| vs[idx],
+            ),
         };
 
         let vs = match query.commit_dt {
             OrdPlacement::Any => vs,
-            _ => query
-                .commit_dt
-                .search(&(vs.iter().map(|v| &v.commit_dt).collect::<Vec<_>>()))
-                .into_iter()
-                .map(|i| vs[i])
-                .collect(),
+            _ => query.commit_dt.find(
+                &(vs.iter().map(|v| &v.commit_dt).collect::<Vec<_>>()),
+                |idx| vs[idx],
+            ),
         };
 
         vs

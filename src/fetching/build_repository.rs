@@ -22,7 +22,11 @@ impl RepoType {
                 Err(_) => Err(FetchError::InvalidResponse),
                 Ok(s) => match serde_json::from_str(&s) {
                     Ok(lst) => Ok(lst),
-                    Err(_) => Err(FetchError::FailedToDeserialize),
+                    Err(_) => {
+                        debug!["failed to parse string: {:?}", s];
+
+                        Err(FetchError::FailedToDeserialize)
+                    }
                 },
             },
             RepoType::GithubAPI => match String::from_utf8(data) {
