@@ -1,6 +1,5 @@
 pub mod config;
 pub mod downloading;
-pub mod extraction;
 pub mod fetching;
 pub mod info;
 pub mod repos;

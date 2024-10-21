@@ -150,7 +150,7 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 ///
 /// `(?:\-([^\@\s\+]+))?`           -- branch (optional)
 ///
-/// `(?:\+([\d\w]+))?`              -- build hash (optional)
+/// `(?:[\+\#]([\d\w]+))?`              -- build hash (optional)
 ///
 /// `(?:\@([\dT\+\:Z\ \^\*\-]+))?`  -- commit time (saved as ^|*|- or an isoformat) (optional)
 ///  
@@ -161,7 +161,7 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         r"^
     ([\^\-\*]|\d+)\.([\^\-\*]|\d+)\.([\^\-\*]|\d+)
     (?:\-([^\@\s\+]+))?
-    (?:\+([\d\w]+))?
+    (?:[\+\#]([\d\w]+))?
     (?:\@([\^\-\*]|[\dT\+\:Z\ \^\-]+))?
     $",
     )
@@ -195,25 +195,24 @@ impl Display for VersionSearchQuery {
 #[derive(Debug)]
 pub enum FromError {
     CannotCaptureViaRegex,
+    CannotCaptureVersionNumbers,
 }
 
-impl TryFrom<String> for VersionSearchQuery {
+impl TryFrom<&str> for VersionSearchQuery {
     type Error = FromError;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let captures = VERSION_SEARCH_REGEX.captures(&value);
-        if captures.is_none() {
-            return Err(FromError::CannotCaptureViaRegex);
-        }
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let captures = VERSION_SEARCH_REGEX
+            .captures(&value)
+            .ok_or_else(|| Self::Error::CannotCaptureViaRegex)?;
 
-        let captures = captures.unwrap();
         let (major, minor, patch) = match (captures.get(1), captures.get(2), captures.get(3)) {
             (Some(ma), Some(mi), Some(pa)) => (
                 OrdPlacement::from(ma.as_str()),
                 OrdPlacement::from(mi.as_str()),
                 OrdPlacement::from(pa.as_str()),
             ),
-            _ => return Err(FromError::CannotCaptureViaRegex),
+            _ => return Err(FromError::CannotCaptureVersionNumbers),
         };
 
         let branch = captures
