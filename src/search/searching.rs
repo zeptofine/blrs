@@ -1,13 +1,16 @@
-use crate::info::{BasicBuildInfo, BlendBuild};
+use crate::{
+    fetching::build_repository::BuildRepo,
+    info::{BasicBuildInfo, BlendBuild},
+};
 
 use super::query::{OrdPlacement, VersionSearchQuery, WildPlacement};
 
-pub struct BInfoMatcher<'a> {
-    versions: &'a [BasicBuildInfo],
+pub struct BInfoMatcher<'a, 'b> {
+    versions: &'a [(BasicBuildInfo, &'b BuildRepo)],
 }
 
-impl<'a> BInfoMatcher<'a> {
-    pub fn new(versions: &'a [BasicBuildInfo]) -> Self {
+impl<'a, 'b> BInfoMatcher<'a, 'b> {
+    pub fn new(versions: &'a [(BasicBuildInfo, &'b BuildRepo)]) -> Self {
         BInfoMatcher { versions }
     }
 
@@ -15,14 +18,19 @@ impl<'a> BInfoMatcher<'a> {
         let vs = self
             .versions
             .iter()
-            .filter(|build| match query.build_hash.clone() {
+            .filter(|(_, repo)| match query.repository.clone() {
+                WildPlacement::Any => true,
+                WildPlacement::Exact(r) => repo.nickname == r,
+            })
+            .filter(|(build, _)| match query.build_hash.clone() {
                 WildPlacement::Any => true,
                 WildPlacement::Exact(hash) => build.ver.build_hash() == hash,
             })
-            .filter(|build| match query.branch.clone() {
+            .filter(|(build, _)| match query.branch.clone() {
                 WildPlacement::Any => true,
                 WildPlacement::Exact(branch) => build.ver.branch() == branch,
             })
+            .map(|(build, _)| build)
             .collect::<Vec<&BasicBuildInfo>>();
 
         let vs = match query.major {

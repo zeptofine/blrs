@@ -247,10 +247,20 @@ impl BlendBuild for VerboseVersion {
     }
 }
 
-#[derive(Hash, PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq, Debug, Ord, Clone, Serialize, Deserialize)]
 pub struct BasicBuildInfo {
     pub ver: VerboseVersion,
     pub commit_dt: DateTime<Utc>,
+}
+
+impl PartialOrd for BasicBuildInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.commit_dt.partial_cmp(&other.commit_dt) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.ver.partial_cmp(&other.ver)
+    }
 }
 
 impl Default for BasicBuildInfo {

@@ -33,8 +33,8 @@ impl<T: FromStr + PartialEq> From<&str> for WildPlacement<T> {
 
 #[derive(Clone, Default)]
 pub enum OrdPlacement<T: PartialOrd + PartialEq> {
-    #[default]
     Latest,
+    #[default]
     Any,
     Oldest,
     Exact(T),
@@ -159,10 +159,11 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(
         r"^
+        (?:([^/@\s\+]+)/)?
     ([\^\-\*]|\d+)\.([\^\-\*]|\d+)\.([\^\-\*]|\d+)
-    (?:\-([^\@\s\+]+))?
+    (?:\-([^@\s\+]+))?
     (?:[\+\#]([\d\w]+))?
-    (?:\@([\^\-\*]|[\dT\+\:Z\ \^\-]+))?
+    (?:@([\^\-\*]|[\dT\+:Z \^\-]+))?
     $",
     )
     .case_insensitive(true)
@@ -176,6 +177,7 @@ pub struct VersionSearchQuery {
     pub major: OrdPlacement<u64>,
     pub minor: OrdPlacement<u64>,
     pub patch: OrdPlacement<u64>,
+    pub repository: WildPlacement<String>,
     pub branch: WildPlacement<String>,
     pub build_hash: WildPlacement<String>,
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
@@ -206,7 +208,12 @@ impl TryFrom<&str> for VersionSearchQuery {
             .captures(&value)
             .ok_or_else(|| Self::Error::CannotCaptureViaRegex)?;
 
-        let (major, minor, patch) = match (captures.get(1), captures.get(2), captures.get(3)) {
+        let repository = captures
+            .get(1)
+            .map(|m| WildPlacement::from(m.as_str()))
+            .unwrap_or_default();
+
+        let (major, minor, patch) = match (captures.get(2), captures.get(3), captures.get(4)) {
             (Some(ma), Some(mi), Some(pa)) => (
                 OrdPlacement::from(ma.as_str()),
                 OrdPlacement::from(mi.as_str()),
@@ -216,26 +223,28 @@ impl TryFrom<&str> for VersionSearchQuery {
         };
 
         let branch = captures
-            .get(4)
+            .get(5)
             .map(|m| WildPlacement::from(m.as_str()))
             .unwrap_or_default();
         let build_hash = captures
-            .get(5)
+            .get(6)
             .map(|m| WildPlacement::from(m.as_str()))
             .unwrap_or_default();
 
         let commit_dt = captures
-            .get(6)
+            .get(7)
             .map(|m| OrdPlacement::from(m.as_str()))
             .unwrap_or_default();
 
-        Ok(Self {
+        let version_search_query = Ok(Self {
             major,
             minor,
             patch,
+            repository,
             branch,
             build_hash,
             commit_dt,
-        })
+        });
+        version_search_query
     }
 }
