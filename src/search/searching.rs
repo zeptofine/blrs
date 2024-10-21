@@ -14,7 +14,7 @@ impl<'a, 'b> BInfoMatcher<'a, 'b> {
         BInfoMatcher { versions }
     }
 
-    pub fn find_all(&self, query: &VersionSearchQuery) -> Vec<&BasicBuildInfo> {
+    pub fn find_all(&self, query: &VersionSearchQuery) -> Vec<&(BasicBuildInfo, &BuildRepo)> {
         let vs = self
             .versions
             .iter()
@@ -30,27 +30,26 @@ impl<'a, 'b> BInfoMatcher<'a, 'b> {
                 WildPlacement::Any => true,
                 WildPlacement::Exact(branch) => build.ver.branch() == branch,
             })
-            .map(|(build, _)| build)
-            .collect::<Vec<&BasicBuildInfo>>();
+            .collect::<Vec<_>>();
 
         let vs = match query.major {
             OrdPlacement::Any => vs,
             _ => query.major.find(
-                &(vs.iter().map(|v| &v.ver.v.major).collect::<Vec<_>>()),
+                &(vs.iter().map(|(v, _)| &v.ver.v.major).collect::<Vec<_>>()),
                 |idx| vs[idx],
             ),
         };
         let vs = match query.minor {
             OrdPlacement::Any => vs,
             _ => query.minor.find(
-                &(vs.iter().map(|v| &v.ver.v.minor).collect::<Vec<_>>()),
+                &(vs.iter().map(|(v, _)| &v.ver.v.minor).collect::<Vec<_>>()),
                 |idx| vs[idx],
             ),
         };
         let vs = match query.patch {
             OrdPlacement::Any => vs,
             _ => query.patch.find(
-                &(vs.iter().map(|v| &v.ver.v.patch).collect::<Vec<_>>()),
+                &(vs.iter().map(|(v, _)| &v.ver.v.patch).collect::<Vec<_>>()),
                 |idx| vs[idx],
             ),
         };
@@ -58,7 +57,7 @@ impl<'a, 'b> BInfoMatcher<'a, 'b> {
         let vs = match query.commit_dt {
             OrdPlacement::Any => vs,
             _ => query.commit_dt.find(
-                &(vs.iter().map(|v| &v.commit_dt).collect::<Vec<_>>()),
+                &(vs.iter().map(|(v, _)| &v.commit_dt).collect::<Vec<_>>()),
                 |idx| vs[idx],
             ),
         };

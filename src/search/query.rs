@@ -174,10 +174,10 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 #[derive(Debug, Clone, Default)]
 pub struct VersionSearchQuery {
+    pub repository: WildPlacement<String>,
     pub major: OrdPlacement<u64>,
     pub minor: OrdPlacement<u64>,
     pub patch: OrdPlacement<u64>,
-    pub repository: WildPlacement<String>,
     pub branch: WildPlacement<String>,
     pub build_hash: WildPlacement<String>,
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
@@ -187,14 +187,20 @@ impl Display for VersionSearchQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
             &(format![
-                "{}.{}.{}-{}+{}@{}",
-                self.major, self.minor, self.patch, self.branch, self.build_hash, self.commit_dt
+                "{}/{}.{}.{}-{}+{}@{}",
+                self.repository,
+                self.major,
+                self.minor,
+                self.patch,
+                self.branch,
+                self.build_hash,
+                self.commit_dt
             ]),
         )
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FromError {
     CannotCaptureViaRegex,
     CannotCaptureVersionNumbers,
