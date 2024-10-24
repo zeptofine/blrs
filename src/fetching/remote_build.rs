@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::BasicBuildInfo;
 
+#[cfg(feature = "reqwest")]
 use reqwest::Url;
 
 #[derive(PartialEq, PartialOrd, Debug, Clone, Serialize, Deserialize)]
@@ -33,18 +34,11 @@ impl std::fmt::Display for RemoteBuild {
 pub struct ParseError;
 
 impl RemoteBuild {
-    // pub fn parse(link: String, basic: BasicBuildInfo) -> Result<Self, ParseError> {
-    //     match Url::parse(&link) {
-    //         // Make sure `link` is a valid URL
-    //         Ok(_url) => Ok(Self { link, basic }),
-    //         Err(_) => Err(ParseError),
-    //     }
-    // }
-
     pub fn string_with_link(&self) -> String {
         format!["{} - {:?}", self, self.link]
     }
 
+    #[cfg(feature = "reqwest")]
     pub fn url(&self) -> Url {
         Url::parse(&self.link).unwrap()
     }

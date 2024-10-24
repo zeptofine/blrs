@@ -1,3 +1,4 @@
+#[cfg(feature = "reqwest")]
 use reqwest::{Proxy, Url};
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +9,7 @@ pub struct SerialProxyOptions {
     pub password: String,
 }
 
+#[cfg(feature = "reqwest")]
 impl TryInto<ProxyOptions> for SerialProxyOptions {
     type Error = ();
 
@@ -23,6 +25,7 @@ impl TryInto<ProxyOptions> for SerialProxyOptions {
     }
 }
 
+#[cfg(feature = "reqwest")]
 pub struct ProxyOptions {
     pub url: Url,
     pub user: String,
@@ -40,6 +43,7 @@ pub fn random_ua() -> String {
     ]
 }
 
+#[cfg(feature = "reqwest")]
 pub fn builder(user_agent: &str, proxy: Option<ProxyOptions>) -> reqwest::ClientBuilder {
     let mut r = reqwest::ClientBuilder::new().user_agent(user_agent);
 

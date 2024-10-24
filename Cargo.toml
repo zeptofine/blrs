@@ -8,12 +8,11 @@ edition = "2021"
 [dependencies]
 
 # downloading Blender builds from builders
-reqwest = { version = "0.12.5" }
-tokio = { version = "1.40.0", features = ["full"] }
+reqwest = { version = "0.12.5", optional = true }
 
 # .blend compressions
-flate2 = { version = "1.0.31" }
-zstd = { version = "0.13.2" }
+flate2 = { version = "1.0.31", optional = true }
+zstd = { version = "0.13.2", optional = true }
 
 # parsing build info
 regex = "1.10.6"
@@ -31,9 +30,6 @@ figment = { version = "0.10.19", features = [
     "toml",
 ] }
 
-# async
-async-std = "1.13.0"
-
 # Helpers
 uuid = { version = "1.10.0", features = ["v4", "fast-rng"] }
 directories = "5.0.1"
@@ -46,20 +42,11 @@ itertools = "0.13.0"
 zip = "2.2.0"
 
 
-# [features]
-# default = ["zstd", "gzip"]
+[features]
+default = ["compressed-blends", "reqwest"]
+compressed-blends = ["dep:flate2", "dep:zstd"]
+reqwest = ["dep:reqwest"]
 
-# zstd = ["dep:zstd"]
-# gzip = ["dep:flate2"]
-# # fetching = ["dep:reqwest", "dep:tokio"]
 
 [profile.release]
 lto = "fat"
-
-[profile.release-fast]
-inherits = "release"
-lto = "thin"
-
-[profile.release-fastest]
-inherits = "release"
-lto = "off"

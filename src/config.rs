@@ -1,22 +1,18 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::LazyLock,
-    time::Duration,
-};
+use std::{path::Path, path::PathBuf, sync::LazyLock, time::Duration};
 
 use chrono::{DateTime, Utc};
 use directories::ProjectDirs;
-use figment::{
-    providers::{Format, Serialized, Toml},
-    Figment,
-};
-use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 
 use crate::fetching::{
     authentication::GithubAuthentication,
     build_repository::{BuildRepo, DEFAULT_REPOS},
-    request_builder::{random_ua, ProxyOptions, SerialProxyOptions},
+    request_builder::{random_ua, SerialProxyOptions},
+};
+
+use figment::{
+    providers::{Format, Serialized, Toml},
+    Figment,
 };
 
 pub static PROJECT_DIRS: LazyLock<ProjectDirs> =
@@ -59,7 +55,7 @@ pub static DEFAULT_LIBRARY_FOLDER: LazyLock<PathBuf> =
 pub static DEFAULT_REPOS_FOLDER: LazyLock<PathBuf> =
     LazyLock::new(|| PROJECT_DIRS.data_dir().to_path_buf().join("remote-repos"));
 
-/// 4 hours
+/// 6 hours
 pub static FETCH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -121,7 +117,12 @@ impl BLRSConfig {
             ))
     }
 
+    #[cfg(feature = "reqwest")]
     pub fn client_builder(&self, use_gh_auth: bool) -> reqwest::ClientBuilder {
+        use reqwest::Proxy;
+
+        use crate::fetching::request_builder::ProxyOptions;
+
         let user_agent: &str = &self.user_agent;
         let proxy: Option<ProxyOptions> = self
             .proxy_options

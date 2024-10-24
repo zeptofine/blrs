@@ -1,13 +1,13 @@
 use std::sync::LazyLock;
 
 use log::debug;
-use reqwest::{Client, StatusCode, Url};
+
 use serde::{Deserialize, Serialize};
 
-use super::{
-    build_schemas::{builder_schema::BlenderBuildSchema, github::GithubRelease},
-    fetcher::FetcherState,
-};
+#[cfg(feature = "reqwest")]
+use reqwest::{Client, StatusCode, Url};
+
+use super::build_schemas::{builder_schema::BlenderBuildSchema, github::GithubRelease};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RepoType {
@@ -49,6 +49,7 @@ pub struct BuildRepo {
 }
 
 impl BuildRepo {
+    #[cfg(feature = "reqwest")]
     pub fn url(&self) -> Url {
         Url::parse(&self.url).unwrap()
     }
@@ -79,18 +80,22 @@ pub static DEFAULT_REPOS: LazyLock<[BuildRepo; 3]> = LazyLock::new(|| {
 
 #[derive(Debug)]
 pub enum FetchError {
+    #[cfg(feature = "reqwest")]
     ReturnCode(StatusCode, Option<&'static str>),
+    #[cfg(feature = "reqwest")]
     Reqwest(reqwest::Error),
     InvalidResponse,
     FailedToDeserialize,
     IoError(std::io::Error),
 }
 
+#[cfg(feature = "reqwest")]
 pub async fn fetch_repo(
     client: Client,
 
     repo: BuildRepo,
 ) -> Result<Vec<BlenderBuildSchema>, FetchError> {
+    use super::fetcher::FetcherState;
     let url = repo.url();
 
     debug!["Using client {:?}", client];

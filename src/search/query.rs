@@ -41,9 +41,9 @@ pub enum OrdPlacement<T: PartialOrd + PartialEq> {
 }
 
 impl<T: Ord + PartialOrd + PartialEq> OrdPlacement<T> {
-    pub fn find<'a, F, R>(&self, values: &[&'a T], f: F) -> Vec<&'a R>
+    pub fn find<'a, F, R>(&self, values: &[&'a T], f: F) -> Vec<R>
     where
-        F: Fn(usize) -> &'a R,
+        F: Fn(usize) -> R,
     {
         match self {
             OrdPlacement::Latest => {
@@ -159,10 +159,10 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(
         r"^
-        (?:([^/@\s\+]+)/)?
+        (?:([^/]+)/)?
     ([\^\-\*]|\d+)\.([\^\-\*]|\d+)\.([\^\-\*]|\d+)
     (?:\-([^@\s\+]+))?
-    (?:[\+\#]([\d\w]+))?
+    (?:[\+\#]([\d\w\^\-\*]+))?
     (?:@([\^\-\*]|[\dT\+:Z \^\-]+))?
     $",
     )

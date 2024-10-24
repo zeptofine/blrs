@@ -253,6 +253,12 @@ pub struct BasicBuildInfo {
     pub commit_dt: DateTime<Utc>,
 }
 
+impl AsRef<Self> for BasicBuildInfo {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
 impl PartialOrd for BasicBuildInfo {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match self.commit_dt.partial_cmp(&other.commit_dt) {
@@ -310,6 +316,12 @@ impl From<LocalBuildInfo> for BuildInfoSpec {
 pub struct LocalBuild {
     pub folder: PathBuf,
     pub info: LocalBuildInfo,
+}
+
+impl AsRef<BasicBuildInfo> for LocalBuild {
+    fn as_ref(&self) -> &BasicBuildInfo {
+        &self.info.basic
+    }
 }
 
 impl LocalBuild {

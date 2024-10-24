@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::DateTime;
-use reqwest::Url;
+
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -42,14 +42,13 @@ impl GithubRelease {
         self.assets
             .into_iter()
             .map(|asset| {
-                let download_url = Url::parse(&asset.browser_download_url).unwrap();
-                let filepath = PathBuf::from(download_url.path());
-                let stem = filepath.file_stem().unwrap().to_str().unwrap().to_string();
+                let filename = PathBuf::from(asset.browser_download_url.split("/").last().unwrap());
+                let stem = filename.file_stem().unwrap().to_str().unwrap().to_string();
                 let extension = {
-                    filepath
+                    filename
                         .clone()
                         .extension()
-                        .unwrap_or(filepath.clone().file_stem().unwrap())
+                        .unwrap_or(filename.clone().file_stem().unwrap())
                         .to_str()
                         .unwrap()
                         .to_string()

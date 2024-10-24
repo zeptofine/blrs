@@ -1,4 +1,8 @@
-use std::{collections::HashMap, env::consts::OS, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env::consts::OS,
+    path::{Path, PathBuf},
+};
 
 use super::LocalBuild;
 
@@ -39,6 +43,13 @@ pub enum OSLaunchTarget {
     MacOS,
 }
 
+impl Default for OSLaunchTarget {
+    #[inline]
+    fn default() -> Self {
+        Self::try_default().unwrap()
+    }
+}
+
 impl OSLaunchTarget {
     pub fn try_default() -> Option<Self> {
         match OS {
@@ -63,13 +74,13 @@ impl OSLaunchTarget {
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct GeneratedParams {
-    exe: PathBuf,
-    args: Option<Vec<String>>,
-    env: Option<HashMap<String, String>>,
+    pub exe: PathBuf,
+    pub args: Option<Vec<String>>,
+    pub env: Option<HashMap<String, String>>,
 }
 
 impl GeneratedParams {
-    pub fn exe<P>(pth: P) -> Self
+    pub fn from_exe<P>(pth: P) -> Self
     where
         P: Into<PathBuf>,
     {
@@ -99,7 +110,7 @@ impl LaunchArguments {
         }
     }
 
-    /// Resolves the launching arguments and creates a tuple with the executable, arguments, and environment variables
+    /// Resolves the launching arguments and creates the params required to launch blender
     pub fn assemble(self, lb: &LocalBuild) -> Result<GeneratedParams, ArgGenerationError> {
         let blender = lb.folder.join(
             lb.info
@@ -133,6 +144,7 @@ impl LaunchArguments {
                 )
             }
         };
+
         Ok(GeneratedParams {
             exe: executable,
             args: args
@@ -187,7 +199,7 @@ mod tests {
             }
             .assemble(&TEST_BUILD)
             .unwrap(),
-            GeneratedParams::exe("blender/blender")
+            GeneratedParams::from_exe("blender/blender")
         ];
         assert_eq![
             LaunchArguments {
