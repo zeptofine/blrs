@@ -83,9 +83,6 @@ impl<T: Ord + PartialOrd + PartialEq + Debug> OrdPlacement<T> {
                         all_latest = vec![f(i)];
                         latest = Some(value);
                     }
-                    println!["{:?} {:?}", i, value];
-                    println!["LATEST: {:?}", latest];
-                    println!["ALL_LATEST: {:?}", all_latest];
                 }
                 all_latest
             }
@@ -184,7 +181,7 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 /// `(?:[\+\#]([\d\w]+))?`          -- build hash (optional)
 ///
 /// `(?:\@([\dT\+\:Z\ \^\*\-]+))?`  -- commit time (saved as ^|*|- or an isoformat) (optional)
-///  
+///
 /// `$`                             -- end of string
 
 pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {

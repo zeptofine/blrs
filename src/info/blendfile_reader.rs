@@ -43,10 +43,6 @@ impl BlendFileHeader {
 const BYTE_REPRESENT_ZERO: u8 = b'0';
 
 fn parse_header_version(nums: &[u8; 3]) -> (u8, u8) {
-    println!["{:?}", nums];
-    println!["{:?}", BYTE_REPRESENT_ZERO];
-    println!["{:?}", String::from_utf8(nums.into())];
-
     let major = nums[0] - BYTE_REPRESENT_ZERO;
     let minor = nums[1] - BYTE_REPRESENT_ZERO;
     let patch = nums[2] - BYTE_REPRESENT_ZERO;
