@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     fmt::Display,
     fs::File,
@@ -145,8 +146,14 @@ impl AsRef<Self> for BasicBuildInfo {
 
 impl PartialOrd for BasicBuildInfo {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.commit_dt.partial_cmp(&other.commit_dt) {
-            Some(core::cmp::Ordering::Equal) => self.ver.partial_cmp(&other.ver),
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BasicBuildInfo {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.commit_dt.cmp(&other.commit_dt) {
+            Ordering::Equal => self.ver.cmp(&other.ver),
             ord => ord,
         }
     }
