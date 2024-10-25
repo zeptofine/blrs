@@ -31,15 +31,25 @@ impl InfoRegexes {
 }
 static INFO_REGEXES: LazyLock<InfoRegexes> = LazyLock::new(InfoRegexes::new);
 
+/// Information collected from the blender build.
 #[derive(Debug, Clone)]
 pub struct CollectedInfo {
+    /// Commit date and time.
     pub commit_dt: Option<DateTime<Utc>>,
+    /// Build hash of Blender.
     pub build_hash: Option<String>,
+    /// Branch of Blender's code.
     pub branch: Option<String>,
+    /// Subversion number of Blender, if available.
     pub subversion: Option<Version>,
+    /// Custom name for Blender, if provided.
     pub custom_name: Option<String>,
 }
 
+/// Get the collected information about Blender from its executable.
+///
+/// This function runs the Blender executable with the `-v` flag and parses the output to extract various pieces of information,
+/// such as commit date and time, build hash, branch name, subversion number, and custom name.
 pub fn get_info_from_blender(executable: &Path) -> io::Result<CollectedInfo> {
     let binding = &mut Command::new(executable);
     let cmd = binding.arg("-v");

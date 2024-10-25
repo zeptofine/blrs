@@ -4,28 +4,51 @@ use reqwest::{Client, Response, Url};
 
 use parking_lot::RwLock;
 
+/// A helper method for [FetcherState::new].
 #[inline]
 pub fn fetch(client: Client, url: Url) -> FetcherState {
     FetcherState::new(client, url)
 }
+/// Fetcher state machine.
+///
+/// This enum represents the different states that the fetcher can be in.
+/// It is used to manage the fetch process and handle any errors that may occur.
+/// This variation only keeps the last chunk of data in its storage.
 pub enum FetchStreamerState {
+    /// Initial ready state, where the client and URL are specified.
     Ready(Client, Url),
+
+    /// Downloading state, where data is being fetched from the server.
     Downloading {
+        /// The HTTP response object.
         response: Response,
+
+        /// The last chunk of bytes that was received.
         last_chunk: Vec<u8>,
     },
+
+    /// Finished state, where the fetch process is complete.
     Finished {
+        /// The HTTP response object.
         response: Response,
     },
+
+    /// Error state, where an error occurred during the fetch process.
     Err(reqwest::Error),
 }
 
 impl FetchStreamerState {
+    /// Creates a new `FetchStreamerState` instance in the ready state.
     #[inline]
     pub fn new(client: Client, url: Url) -> Self {
         Self::Ready(client, url)
     }
 
+    /// Advances the fetcher to the next state based on the current state.
+    ///
+    /// This method is used to manage the fetch process and handle any errors that
+    /// may occur. It returns a new [`FetchStreamerState`] instance with the updated
+    /// state.
     pub async fn advance(self) -> Self {
         match self {
             Self::Ready(client, url) => {
@@ -60,26 +83,52 @@ impl FetchStreamerState {
     }
 }
 
+/// Fetcher state machine.
+///
+/// This enum represents the different states that the fetcher can be in.
+/// It is used to manage the fetch process and handle any errors that may occur.
+#[derive(Debug)]
 pub enum FetcherState {
+    /// Initial ready state, where the client and URL are specified.
     Ready(Client, Url),
+
+    /// Downloading state, where data is being fetched from the server.
     Downloading {
+        /// The HTTP response object.
         response: Response,
+
+        /// The downloaded bytes so far, wrapped in an [`Arc<RwLock>`].
         downloaded_bytes: Arc<RwLock<Vec<u8>>>,
+
+        /// The total size of the file (optional).
         total_bytes: Option<u64>,
     },
+
+    /// Finished state, where the fetch process is complete.
     Finished {
+        /// The HTTP response object.
         response: Response,
+
+        /// The downloaded bytes wrapped in an [`Arc<RwLock>`]`.
         bytes: Arc<RwLock<Vec<u8>>>,
     },
+
+    /// Error state, where an error occurred during the fetch process.
     Err(reqwest::Error),
 }
 
 impl FetcherState {
+    /// Creates a new `FetcherState` instance in the ready state.
     #[inline]
     pub fn new(client: Client, url: Url) -> Self {
         Self::Ready(client, url)
     }
 
+    /// Advances the fetcher to the next state based on the current state.
+    ///
+    /// This method is used to manage the fetch process and handle any errors that
+    /// may occur. It returns a new [`FetcherState`] instance with the updated
+    /// state.
     pub async fn advance(self) -> Self {
         match self {
             Self::Ready(client, url) => {

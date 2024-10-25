@@ -5,14 +5,18 @@ use log::debug;
 use semver::Version;
 use sha2::{Digest, Sha256};
 
-use super::build_schemas::builder_schema::BlenderBuildSchema;
+use super::build_schemas::BlenderBuildSchema;
 
+/// A struct representing a pair of SHA256 checksums associated with a Blender build schema.
 #[derive(Debug, Default)]
 pub struct Sha256Pair {
+    /// The SHA256 checksum for the Blender build.
     pub sha256: Option<BlenderBuildSchema>,
+    /// The Blender build schema itself.
     pub build: Option<BlenderBuildSchema>,
 }
 
+///  Constructs a HashMap mapping Blender version strings to Sha256Pair structs.
 pub fn get_sha256_pairs(lst: Vec<BlenderBuildSchema>) -> HashMap<Version, Sha256Pair> {
     let mut map: HashMap<Version, Sha256Pair> = HashMap::new();
 
@@ -48,9 +52,12 @@ pub fn get_sha256_pairs(lst: Vec<BlenderBuildSchema>) -> HashMap<Version, Sha256
     map
 }
 
+/// Enum representing possible errors during parsing.
 #[derive(Debug)]
 pub enum ParseError {
+    /// Error encountered while converting UTF-8 encoded bytes.
     FromUtf8(FromUtf8Error),
+    /// I/O error occurred during file operations.
     Io(std::io::Error),
 }
 
@@ -65,6 +72,7 @@ impl From<FromUtf8Error> for ParseError {
     }
 }
 
+///  Calculates the SHA256 hash of a file.
 pub fn generate_sha256<P>(file: P) -> Result<String, std::io::Error>
 where
     P: AsRef<Path>,
@@ -85,6 +93,7 @@ where
     Ok(hasher.finalize().to_vec().encode_hex::<String>())
 }
 
+///  Compares the SHA256 hash of a file with a given checksum.
 pub fn verify_sha256<P1, P2>(sha256_file: P1, checked_file: P2) -> Result<bool, ParseError>
 where
     P1: AsRef<Path>,

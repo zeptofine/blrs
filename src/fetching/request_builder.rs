@@ -1,15 +1,20 @@
 #[cfg(feature = "reqwest")]
-use reqwest::{Proxy, Url};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
+/// Proxy options able to be serialized.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Default)]
 pub struct SerialProxyOptions {
+    /// The url of the proxy
     pub url: String,
+    /// The username of the proxy
     pub user: String,
+    /// The password of the proxy
     pub password: String,
 }
 
 #[cfg(feature = "reqwest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 impl TryInto<ProxyOptions> for SerialProxyOptions {
     type Error = ();
 
@@ -25,13 +30,19 @@ impl TryInto<ProxyOptions> for SerialProxyOptions {
     }
 }
 
+/// Options for configuring a proxy for requests.
 #[cfg(feature = "reqwest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 pub struct ProxyOptions {
+    /// The url of the proxy
     pub url: Url,
+    /// The username of the proxy
     pub user: String,
+    /// The password of the proxy
     pub password: String,
 }
 
+/// Generates a random user-agent
 pub fn random_ua() -> String {
     format![
         "{}/{}/{}-{}-{}",
@@ -41,20 +52,4 @@ pub fn random_ua() -> String {
         std::env::consts::OS,
         uuid::Uuid::new_v4()
     ]
-}
-
-#[cfg(feature = "reqwest")]
-pub fn builder(user_agent: &str, proxy: Option<ProxyOptions>) -> reqwest::ClientBuilder {
-    let mut r = reqwest::ClientBuilder::new().user_agent(user_agent);
-
-    r = match proxy {
-        None => r,
-        Some(options) => r.proxy(
-            Proxy::all(options.url)
-                .unwrap()
-                .basic_auth(&options.user, &options.password),
-        ),
-    };
-
-    r
 }

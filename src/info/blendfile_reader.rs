@@ -4,22 +4,37 @@ use std::path::Path;
 
 use semver::Version;
 
-// See https://docs.blender.org/manual/en/latest/files/blend/open_save.html#id8
+/// The compression type used to store a Blender file.
+///
+/// These types are used in the file header and determine how the file is compressed.
+///
+/// See <https://docs.blender.org/manual/en/latest/files/blend/open_save.html#id8>
 #[derive(Default, Debug, Clone)]
 pub enum CompressionType {
-    Gzip, // used for < 3.0
-    Zstd, // used for >= 3.0
+    /// Compressed with Gzip for versions of Blender before 3.0.
+    Gzip,
+    /// Compressed with Zstd for versions of Blender 3.0 or later.
+    Zstd,
+    /// No compression used; the file is stored in its raw form.
     #[default]
-    None, // used universally
+    None,
 }
 
+/// The header information for a Blender file.
+///
+/// This struct contains metadata about the file, including the version and compression type.
 #[derive(Debug, Clone, Default)]
 pub struct BlendFileHeader {
+    /// The major and minor version numbers of the Blender software used to create this file.
     pub version: (u8, u8),
+    /// The compression type used in the file header.
     pub compression_type: CompressionType,
 }
 
 impl BlendFileHeader {
+    /// Returns a `Version` instance representing the Blender version number stored in the file header.
+    ///
+    /// This method creates a `Version` instance using the major and minor version numbers as the major, minor, and patch versions respectively.
     pub fn version(&self) -> Version {
         Version::new(self.version.0 as u64, self.version.1 as u64, 0)
     }

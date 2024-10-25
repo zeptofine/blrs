@@ -12,7 +12,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
-    fetching::{build_repository::BuildRepo, build_schemas::builder_schema::BlenderBuildSchema},
+    fetching::{build_repository::BuildRepo, build_schemas::BlenderBuildSchema},
     BLRSPaths, BasicBuildInfo, LocalBuild, RemoteBuild,
 };
 
@@ -22,10 +22,15 @@ pub(crate) fn is_dir_or_link_to_dir(p: &Path) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize)]
+/// Represents a specific build variant of Blender.
 pub struct BuildVariant<B: Display + Debug> {
+    /// The identifier or name for this build variant.
     pub b: B,
+    /// The target operating system for this build.
     pub target_os: String,
+    /// The target architecture for this build.
     pub architecture: String,
+    /// The file extension used for binaries built with this variant.
     pub extension: String,
 }
 
@@ -36,8 +41,11 @@ impl<B: Display + Debug> Display for BuildVariant<B> {
 }
 
 #[derive(Clone, Serialize)]
+/// Represents a collection of build variants along with basic build information.
 pub struct Variants<B: Display + Debug> {
+    /// The vector of BuildVariant structs representing available build options.
     pub v: Vec<BuildVariant<B>>,
+    /// Basic information about the build.
     pub basic: BasicBuildInfo,
 }
 
@@ -54,6 +62,7 @@ impl<B: Display + Debug> Debug for Variants<B> {
 }
 
 impl<B: Display + Debug> Variants<B> {
+    /// Filters the variants based on a specific target combination.
     pub fn filter_target(self, target: (&str, &str, &str)) -> Self {
         Self {
             v: self
@@ -70,20 +79,38 @@ impl<B: Display + Debug> Variants<B> {
     }
 }
 
+/// An entry of a build.
 #[derive(Debug, Serialize)]
 pub enum BuildEntry {
+    /// Indicates that a build for this variant is not installed locally.
+    /// Contains information about the remote build.
     NotInstalled(Variants<RemoteBuild>),
+
+    /// Indicates that a build for this variant is installed locally.
+    /// Provides details about the installed build.
     Installed(String, LocalBuild),
+
+    /// Represents an error encountered while processing or attempting to access a build.
+    /// Includes the error information and possibly a path.
     Errored(#[serde(skip)] std::io::Error, Option<PathBuf>),
 }
 
+/// An entry of a build repo.
 #[derive(Debug, Serialize)]
 pub enum RepoEntry {
+    /// A registered repository entry with associated build entries.
     Registered(BuildRepo, Vec<BuildEntry>),
+
+    /// An unknown repository entry that may still contain build entries but lacks a registered association.
     Unknown(String, Vec<BuildEntry>),
+
+    /// An error encountered while reading or processing the repository entry.
     Error(String, #[serde(skip)] std::io::Error),
 }
+
 impl RepoEntry {
+    /// Checks if any BuildEntry in the repository is of type Installed,
+    /// indicating a locally installed build.
     pub fn has_installed_builds(&self) -> bool {
         match self {
             RepoEntry::Registered(_, vec) | RepoEntry::Unknown(_, vec) => vec
@@ -94,7 +121,7 @@ impl RepoEntry {
     }
 }
 
-pub fn read_repo_cache(repo_cache_path: &Path) -> Vec<RemoteBuild> {
+fn read_repo_cache(repo_cache_path: &Path) -> Vec<RemoteBuild> {
     match repo_cache_path.exists() {
         true => match File::open(repo_cache_path) {
             Ok(file) => {
@@ -109,7 +136,7 @@ pub fn read_repo_cache(repo_cache_path: &Path) -> Vec<RemoteBuild> {
     .collect()
 }
 
-pub fn read_repo_cache_variants(repo_cache_path: &Path) -> HashMap<String, Variants<RemoteBuild>> {
+fn read_repo_cache_variants(repo_cache_path: &Path) -> HashMap<String, Variants<RemoteBuild>> {
     read_repo_cache(repo_cache_path)
         .into_iter()
         .sorted_by_key(|k| k.basic.ver.clone())
@@ -192,6 +219,15 @@ fn get_known_and_unknown_repos(
     Ok(existing.into_iter().chain(missing).collect())
 }
 
+/// Reads and processes build repositories.
+///
+/// This function reads in a list of build repositories, retrieves information about
+/// each repository's contents (both installed and cached), and combines them into a
+/// structured representation.
+/// It handles both registered repositories (defined in the configuration) and
+/// unknown repositories present in the filesystem.
+///
+/// The `installed_only` flag controls whether to only consider installed build entries
 pub fn read_repos(
     repos: Vec<BuildRepo>,
     paths: &BLRSPaths,

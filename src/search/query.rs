@@ -2,11 +2,18 @@ use std::{fmt::Debug, fmt::Display, str::FromStr, sync::LazyLock};
 
 use chrono::{DateTime, Utc};
 use regex::{Regex, RegexBuilder};
+use thiserror::Error;
 
+/// WildPlacement is used to define a strategy on how to match elements in an unordered collection.
+/// This has no `find` implementation like [OrdPlacement] does because it is
+/// fairly straightforward for callers to implement.
 #[derive(Debug, Clone, Default)]
+
 pub enum WildPlacement<T: PartialEq> {
+    /// This is analogous to doing nothing.
     #[default]
     Any,
+    /// Find a specific value in a group.
     Exact(T),
 }
 
@@ -31,19 +38,39 @@ impl<T: FromStr + PartialEq> From<&str> for WildPlacement<T> {
     }
 }
 
+/// OrdPlacement is used to define a strategy on how to match elements in an ordered collection. It can be:
+///
+/// ```
+/// use blrs::search::OrdPlacement;
+///
+/// let v = vec![&0, &1, &4, &10, &65];
+/// assert_eq![OrdPlacement::Latest.find(&v, |x| *v[x]), vec![65]];
+/// assert_eq![OrdPlacement::Oldest.find(&v, |x| *v[x]), vec![0]];
+/// assert_eq![OrdPlacement::Any.find(&v, |x| v[x]), v];
+/// assert_eq![OrdPlacement::Exact(10).find(&v, |x| *v[x]), vec![10]];
+///
+/// ```
 #[derive(Clone, Default)]
 pub enum OrdPlacement<T: PartialOrd + PartialEq> {
+    /// Find the latest/newest value in a group.
     Latest,
+    /// This is analogous to doing nothing.
     #[default]
     Any,
+    /// Find the oldest value in a group.
     Oldest,
+    /// Find a specific value in a group.
     Exact(T),
 }
 
-impl<T: Ord + PartialOrd + PartialEq> OrdPlacement<T> {
-    pub fn find<'a, F, R>(&self, values: &[&'a T], f: F) -> Vec<R>
+impl<T: Ord + PartialOrd + PartialEq + Debug> OrdPlacement<T> {
+    /// Filters the values and returns a [`Vec<R>`] that pass the placement check.
+    ///
+    /// The F function must take an index and return a value that the caller expects.
+    pub fn find<F, R>(&self, values: &[&T], f: F) -> Vec<R>
     where
         F: Fn(usize) -> R,
+        R: Debug,
     {
         match self {
             OrdPlacement::Latest => {
@@ -52,10 +79,13 @@ impl<T: Ord + PartialOrd + PartialEq> OrdPlacement<T> {
                 for (i, value) in values.iter().enumerate() {
                     if latest.is_some_and(|l| &l == value) {
                         all_latest.push(f(i));
-                    } else if latest.is_some_and(|l| &l < value) | latest.is_none() {
+                    } else if latest.is_some_and(|l| l < *value) | latest.is_none() {
                         all_latest = vec![f(i)];
                         latest = Some(value);
                     }
+                    println!["{:?} {:?}", i, value];
+                    println!["LATEST: {:?}", latest];
+                    println!["ALL_LATEST: {:?}", all_latest];
                 }
                 all_latest
             }
@@ -124,20 +154,21 @@ impl<T: FromStr + PartialOrd + PartialEq> From<&str> for OrdPlacement<T> {
 /// - `<n>`  | Match a specific item in that column
 ///
 /// Valid examples of version search queries are:
+///```md
+/// *.*.*
 ///
-/// `*.*.*`
+/// 1.2.3-master
 ///
-/// `1.2.3-master`
+/// 4.^.^-stable@^
 ///
-/// `4.^.^-stable@^`
+/// 4.3.^+cb886aba06d5@^
 ///
-/// `4.3.^+cb886aba06d5@^`
-///
-/// `4.3.^@2024-07-31T23:53:51+00:00`
+/// 4.3.^@2024-07-31T23:53:51+00:00
 ///
 /// And of course, a full example:
 ///
-/// `4.3.^-stable+cb886aba06d5@2024-07-31T23:53:51+00:00`
+/// 4.3.^-stable+cb886aba06d5@2024-07-31T23:53:51+00:00
+///```
 ///
 pub const VERSION_SEARCH_SYNTAX: &str =
     "<major_num>.<minor>.<patch>[-<branch>][+<build_hash>][@<commit time>]";
@@ -150,11 +181,11 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 ///
 /// `(?:\-([^\@\s\+]+))?`           -- branch (optional)
 ///
-/// `(?:[\+\#]([\d\w]+))?`              -- build hash (optional)
+/// `(?:[\+\#]([\d\w]+))?`          -- build hash (optional)
 ///
 /// `(?:\@([\dT\+\:Z\ \^\*\-]+))?`  -- commit time (saved as ^|*|- or an isoformat) (optional)
 ///  
-/// $                               -- end of string
+/// `$`                             -- end of string
 
 pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(
@@ -172,18 +203,45 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
+/// A Search query with the necessary parameters to group and filter
+/// BasicBuildInfo instances.
 #[derive(Debug, Clone, Default)]
 pub struct VersionSearchQuery {
+    /// The nickname of the repository that the build belongs to.
     pub repository: WildPlacement<String>,
+
+    /// The major part of the build version.
     pub major: OrdPlacement<u64>,
+
+    /// The minor part of the build version.
+    ///
+    /// In older versions, this can be double digits like 2.93
     pub minor: OrdPlacement<u64>,
+
+    /// The patch part of the build version.
+    ///
+    /// This is usually omitted in older versions of blender because they
+    /// used to follow a different naming scheme.
     pub patch: OrdPlacement<u64>,
+
+    /// The branch of the build.
+    /// Depending on the repo you use, this is less or more effective. It's mostly
+    /// useful to differentiate build subgroups.
     pub branch: WildPlacement<String>,
+
+    /// The build hash of the build.
+    /// This tends to be a unique value per build, so it's a good value to
+    /// restrict to ***one*** specific build.
     pub build_hash: WildPlacement<String>,
+
+    /// A specific date in time to sort by.
+    /// By personal testing, it is strongly advised to only use the ordered placement
+    /// mode because of how specific the actual [`DateTime`] struct is.
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
 }
 
 impl VersionSearchQuery {
+    /// Returns a new [VersionSearchQuery] with a new [`OrdPlacement<DateTime<Utc>>`], defaulting to [OrdPlacement::Any].
     pub fn with_commit_dt(self, commit_dt: Option<OrdPlacement<DateTime<Utc>>>) -> Self {
         Self {
             commit_dt: commit_dt.unwrap_or_default(),
@@ -211,10 +269,20 @@ impl Display for VersionSearchQuery {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
+/// Errors that could occur from giving an incorrect string to [`VersionSearchQuery::try_from`].
+///
+/// ```
+/// use blrs::search::VersionSearchQuery;
+/// use blrs::search::FromError;
+/// assert![matches![VersionSearchQuery::try_from("*.*.*"), Ok(_)]];
+/// assert![matches![VersionSearchQuery::try_from("incorrect!"), Err(FromError::CannotCaptureViaRegex)]];
+/// ```
 pub enum FromError {
+    /// This can occur when the string could not be parsed by the [VERSION_SEARCH_REGEX].
+
+    #[error("Could not get required parameters from the given string")]
     CannotCaptureViaRegex,
-    CannotCaptureVersionNumbers,
 }
 
 impl TryFrom<&str> for VersionSearchQuery {
@@ -222,8 +290,8 @@ impl TryFrom<&str> for VersionSearchQuery {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let captures = VERSION_SEARCH_REGEX
-            .captures(&value)
-            .ok_or_else(|| Self::Error::CannotCaptureViaRegex)?;
+            .captures(value)
+            .ok_or(Self::Error::CannotCaptureViaRegex)?;
 
         let repository = captures
             .get(1)
@@ -236,7 +304,7 @@ impl TryFrom<&str> for VersionSearchQuery {
                 OrdPlacement::from(mi.as_str()),
                 OrdPlacement::from(pa.as_str()),
             ),
-            _ => return Err(FromError::CannotCaptureVersionNumbers),
+            _ => return Err(FromError::CannotCaptureViaRegex),
         };
 
         let branch = captures
@@ -253,7 +321,7 @@ impl TryFrom<&str> for VersionSearchQuery {
             .map(|m| OrdPlacement::from(m.as_str()))
             .unwrap_or_default();
 
-        let version_search_query = Ok(Self {
+        Ok(Self {
             major,
             minor,
             patch,
@@ -261,7 +329,6 @@ impl TryFrom<&str> for VersionSearchQuery {
             branch,
             build_hash,
             commit_dt,
-        });
-        version_search_query
+        })
     }
 }

@@ -2,16 +2,22 @@ use std::{collections::HashMap, env::consts::OS, path::PathBuf};
 
 use super::LocalBuild;
 
+/// An enum specifying stuff fed to blender when built.
 #[derive(Clone, Debug, Default)]
 pub enum BlendLaunchTarget {
+    /// No target specified.
     #[default]
     None,
+    /// Open a specific blend file.
     File(PathBuf),
+    /// Open the last blend file.
     OpenLast,
+    /// Launch Blender with custom arguments.
     Custom(Vec<String>),
 }
 
 impl BlendLaunchTarget {
+    /// Modifies the provided argument vector based on the launch target.
     pub fn transform(self, mut args: Vec<String>) -> Vec<String> {
         match self {
             BlendLaunchTarget::None => {}
@@ -32,10 +38,17 @@ impl BlendLaunchTarget {
     }
 }
 
+/// An enum specifying the target OS and its specific launch configuration.
 #[derive(Clone, Debug)]
 pub enum OSLaunchTarget {
+    /// Linux environment.
     Linux,
-    Windows { no_console: bool },
+    /// Windows environment with optional console flag.
+    Windows {
+        /// Whether to launch Blender without a console window. This is relevant for GUI-based launches.
+        no_console: bool,
+    },
+    /// macOS environment.
     MacOS,
 }
 
@@ -47,6 +60,7 @@ impl Default for OSLaunchTarget {
 }
 
 impl OSLaunchTarget {
+    /// Attempts to determine the default launch target based on the current OS.
     pub fn try_default() -> Option<Self> {
         match OS {
             "windows" => Some(Self::Windows { no_console: true }),
@@ -56,6 +70,7 @@ impl OSLaunchTarget {
         }
     }
 
+    /// Returns the appropriate executable name for the current OS target.
     pub fn exe_name(&self) -> &'static str {
         match self {
             OSLaunchTarget::Linux => "blender",
@@ -68,14 +83,21 @@ impl OSLaunchTarget {
     }
 }
 
+/// Struct holding parameters required to launch Blender.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct GeneratedParams {
+    /// Executable path
     pub exe: PathBuf,
+
+    /// command arguments
     pub args: Option<Vec<String>>,
+
+    /// environment variables
     pub env: Option<HashMap<String, String>>,
 }
 
 impl GeneratedParams {
+    /// Creates a new `GeneratedParams` instance with only the executable path.
     pub fn from_exe<P>(pth: P) -> Self
     where
         P: Into<PathBuf>,
@@ -86,18 +108,25 @@ impl GeneratedParams {
         }
     }
 }
-
 #[derive(Clone, Debug)]
+/// Errors related to generating parameters.
 pub enum ArgGenerationError {}
 
+/// Struct holding the arguments required to launch Blender with specific configurations.
 #[derive(Clone, Debug)]
 pub struct LaunchArguments {
+    /// Specifies the file to open in Blender or a custom command for launching.
     pub file_target: BlendLaunchTarget,
+
+    /// Determines the target operating system and its associated launch configuration.
     pub os_target: OSLaunchTarget,
+
+    /// Optional environment variables to be passed to Blender.
     pub env: Option<HashMap<String, String>>,
 }
 
 impl LaunchArguments {
+    /// Creates a new `LaunchArguments` instance with only the file target specified as `None`.
     pub fn file(file: BlendLaunchTarget) -> Self {
         LaunchArguments {
             file_target: file,
@@ -167,9 +196,9 @@ mod tests {
     use chrono::DateTime;
 
     use crate::info::{
-        build_info::{LocalBuildInfo, VerboseVersion},
+        build_info::LocalBuildInfo,
         launching::{BlendLaunchTarget, GeneratedParams, LaunchArguments, OSLaunchTarget},
-        BasicBuildInfo, LocalBuild,
+        BasicBuildInfo, LocalBuild, VerboseVersion,
     };
     const TEST_BUILD: LazyLock<LocalBuild> = LazyLock::new(|| LocalBuild {
         folder: PathBuf::from("blender/"),

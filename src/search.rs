@@ -1,2 +1,5 @@
-pub mod query;
-pub mod searching;
+mod query;
+mod searching;
+
+pub use query::*;
+pub use searching::BInfoMatcher;
