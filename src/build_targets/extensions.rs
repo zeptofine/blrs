@@ -16,9 +16,10 @@ pub const READABLE_FILETYPES: [&str; 3] = [TARGET_LINUX_EXT, TARGET_WINDOWS_EXT,
 ///
 /// If the platform is not supported, returns `None`.
 pub fn get_target_setup() -> Option<(&'static str, &'static str, &'static str)> {
-    let arch = match ARCH {
-        "aarch64" => "arm64",
-        x => x,
+    let arch = match (ARCH, OS) {
+        ("aarch64", _) => "arm64",
+        ("x86_64", "windows") => "amd64",
+        (x, _) => x,
     };
 
     match OS {
