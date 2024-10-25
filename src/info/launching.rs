@@ -63,7 +63,7 @@ impl OSLaunchTarget {
     /// Attempts to determine the default launch target based on the current OS.
     pub fn try_default() -> Option<Self> {
         match OS {
-            "windows" => Some(Self::Windows { no_console: true }),
+            "windows" => Some(Self::Windows { no_console: false }),
             "linux" => Some(Self::Linux),
             "macos" => Some(Self::MacOS),
             _ => None,
@@ -75,7 +75,7 @@ impl OSLaunchTarget {
         match self {
             OSLaunchTarget::Linux => "blender",
             OSLaunchTarget::Windows { no_console } => match no_console {
-                true => "blender_launcher.exe",
+                true => "blender-launcher.exe",
                 false => "blender.exe",
             },
             OSLaunchTarget::MacOS => "Blender/Blender.app",
