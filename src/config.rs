@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::fetching::{
     authentication::GithubAuthentication,
     build_repository::{BuildRepo, DEFAULT_REPOS},
-    random_ua, SerialProxyOptions,
+    random_ua,
 };
 
 #[cfg(feature = "figment")]
@@ -97,7 +97,7 @@ pub struct History {
     pub last_time_checked: Option<DateTime<Utc>>,
 }
 
-// TODO: Encrypt the proxy options and the github authentication
+// TODO: Encrypt the github authentication somehow
 
 ///  Represents the main configuration struct for BLRS.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -110,8 +110,6 @@ pub struct BLRSConfig {
     pub repos: Vec<BuildRepo>,
     /// Contains information about the last launched build and repo update checks.
     pub history: History,
-    /// Contains options about setting a proxy for request making.
-    proxy_options: Option<SerialProxyOptions>,
     /// Authentication details for GitHub
     gh_auth: Option<GithubAuthentication>,
 }
@@ -123,7 +121,6 @@ impl Default for BLRSConfig {
             paths: Default::default(),
             repos: DEFAULT_REPOS.clone().into_iter().collect(),
             history: Default::default(),
-            proxy_options: Default::default(),
             gh_auth: Default::default(),
         }
     }
@@ -144,28 +141,17 @@ impl BLRSConfig {
             ))
     }
 
-    /// A public method for updating the proxy options.
-    pub fn update_proxy_options(&mut self, po: Option<SerialProxyOptions>) {
-        self.proxy_options = po;
-    }
     /// A public method for updating the github authentication.
     pub fn update_github_authentication(&mut self, ga: Option<GithubAuthentication>) {
         self.gh_auth = ga
     }
 
-    /// Creates a ClientBuilder with the configured proxy options.
+    /// Creates a ClientBuilder with the configured auth options.
     #[cfg(feature = "reqwest")]
     #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
     pub fn client_builder(&self, use_gh_auth: bool) -> reqwest::ClientBuilder {
-        use reqwest::Proxy;
-
-        use crate::fetching::ProxyOptions;
-
         let user_agent: &str = &self.user_agent;
-        let proxy: Option<ProxyOptions> = self
-            .proxy_options
-            .clone()
-            .and_then(|opts| opts.try_into().ok());
+
         let mut r = reqwest::ClientBuilder::new().user_agent(user_agent);
 
         r = match (use_gh_auth, &self.gh_auth) {
@@ -181,15 +167,6 @@ impl BLRSConfig {
                 r.default_headers(headers)
             }
             _ => r,
-        };
-
-        r = match proxy {
-            None => r,
-            Some(options) => r.proxy(
-                Proxy::all(options.url)
-                    .unwrap()
-                    .basic_auth(&options.user, &options.password),
-            ),
         };
 
         r

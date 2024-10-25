@@ -17,10 +17,17 @@ pub mod checksums;
 #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 pub mod fetcher;
 mod remote_build;
-mod request_builder;
 
 pub use remote_build::RemoteBuild;
 
-#[cfg(feature = "reqwest")]
-pub use request_builder::ProxyOptions;
-pub use request_builder::{random_ua, SerialProxyOptions};
+/// Generates a random user-agent
+pub fn random_ua() -> String {
+    format![
+        "{}/{}/{}-{}-{}",
+        env!["CARGO_PKG_NAME"],
+        env!["CARGO_PKG_VERSION"],
+        std::env::consts::ARCH,
+        std::env::consts::OS,
+        uuid::Uuid::new_v4()
+    ]
+}

@@ -2,25 +2,6 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-/// A struct holding proxy configuration settings
-#[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct ProxyConfig {
-    /// The hostname of the proxy server
-    pub url: String,
-    /// The username for the user
-    pub user: String,
-    /// The password for the user
-    pub password: String,
-}
-
-impl Debug for ProxyConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProxyConfig")
-            .field("REDACTED", &"REDACTED")
-            .finish()
-    }
-}
-
 /// A struct holding GitHub authentication settings
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct GithubAuthentication {
