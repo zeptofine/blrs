@@ -2,6 +2,8 @@
 
 ## `blrs` is a crate designed to streamline the management and utilization of Blender builds.
 
+I built this crate to be the backbone of my own build managing program, `blrs-cli`. 
+I intend to use it for a GUI in the future aswell.
 
 It provides tools for configuring apps made for the purpose of managing builds,
 fetching build artifacts from remote repositories, and interacting with local and remote build information.
