@@ -21,4 +21,6 @@ mod request_builder;
 
 pub use remote_build::RemoteBuild;
 
-pub use request_builder::{random_ua, ProxyOptions, SerialProxyOptions};
+#[cfg(feature = "reqwest")]
+pub use request_builder::ProxyOptions;
+pub use request_builder::{random_ua, SerialProxyOptions};

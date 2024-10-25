@@ -1,4 +1,4 @@
-use std::{path::Path, path::PathBuf, sync::LazyLock, time::Duration};
+use std::{path::PathBuf, sync::LazyLock, time::Duration};
 
 use chrono::{DateTime, Utc};
 use directories::ProjectDirs;
@@ -10,10 +10,13 @@ use crate::fetching::{
     random_ua, SerialProxyOptions,
 };
 
+#[cfg(feature = "figment")]
 use figment::{
     providers::{Format, Serialized, Toml},
     Figment,
 };
+#[cfg(feature = "figment")]
+use std::path::Path;
 
 /// This static variable holds the project's directory structure.
 pub static PROJECT_DIRS: LazyLock<ProjectDirs> =

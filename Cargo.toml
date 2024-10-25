@@ -1,8 +1,13 @@
 [package]
 name = "blrs"
+description = "a crate designed to streamline the management and utilization of Blender builds"
+repository = "https://github.com/zeptofine/blrs"
+documentation = "https://docs.rs/blrs"
+
 version = "0.1.0"
 authors = ["Erin MacDonald <zeptofine@gmail.com>"]
 edition = "2021"
+readme = "README.md"
 license = "Apache-2.0"
 
 [package.metadata.docs.rs]
@@ -50,7 +55,8 @@ document-features = "0.2.10"
 
 
 [features]
-default = ["compressed-blends", "reqwest", "figment"]
+all = ["compressed-blends", "reqwest", "figment"]
+default = ["compressed-blends"]
 ## Uses [`flate2`] and [`zstd`] to extract builds compressed with Zstd and Gzip.
 compressed-blends = ["dep:flate2", "dep:zstd"]
 ## Adds reqwest methods in various places and gives the helper structs like FetcherState.

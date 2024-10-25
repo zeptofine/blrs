@@ -1,18 +1,15 @@
-# Blrs
-
 ## `blrs` is a crate designed to streamline the management and utilization of Blender builds.
 
-I built this crate to be the backbone of my own build managing program, `blrs-cli`. 
+#### I built this crate to be the backbone of my own blender managing program, `blrs-cli`. 
 I intend to use it for a GUI in the future aswell.
 
 It provides tools for configuring apps made for the purpose of managing builds,
 fetching build artifacts from remote repositories, and interacting with local and remote build information.
 This crate lets users effectively categorize and utilize various Blender builds across diverse environments. 
 
-Use cases include:
+### Contributing:
 
-* **Blender Build Management:** Easily download, manage, and organize Blender builds from different sources.
-* **Build Comparison and Selection:** Efficiently compare the characteristics of various builds to select the most suitable option for a specific project or purpose.
+blrs-cli is open-source and welcomes contributions. If you have ideas, bug fixes, or enhancements, please feel free to contribute to the project on GitHub. I (zeptofine) am  still relatively new to Rust, so feedback is appreciated!
 
 
 License
