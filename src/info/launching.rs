@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    env::consts::OS,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, env::consts::OS, path::PathBuf};
 
 use super::LocalBuild;
 

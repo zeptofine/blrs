@@ -163,7 +163,7 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     ([\^\-\*]|\d+)\.([\^\-\*]|\d+)\.([\^\-\*]|\d+)
     (?:\-([^@\s\+]+))?
     (?:[\+\#]([\d\w\^\-\*]+))?
-    (?:@([\^\-\*]|[\dT\+:Z \^\-]+))?
+    (?:@([\^\-\*]|[\d\+:ZUTC \-\^]+))?
     $",
     )
     .case_insensitive(true)
@@ -183,20 +183,31 @@ pub struct VersionSearchQuery {
     pub commit_dt: OrdPlacement<DateTime<Utc>>,
 }
 
+impl VersionSearchQuery {
+    pub fn with_commit_dt(self, commit_dt: Option<OrdPlacement<DateTime<Utc>>>) -> Self {
+        Self {
+            commit_dt: commit_dt.unwrap_or_default(),
+            ..self
+        }
+    }
+}
+
 impl Display for VersionSearchQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            &(format![
-                "{}/{}.{}.{}-{}+{}@{}",
-                self.repository,
-                self.major,
-                self.minor,
-                self.patch,
-                self.branch,
-                self.build_hash,
-                self.commit_dt
-            ]),
-        )
+        let mut s = format![
+            "{}.{}.{}-{}#{}",
+            self.major, self.minor, self.patch, self.branch, self.build_hash,
+        ];
+        match &self.commit_dt {
+            OrdPlacement::Latest | OrdPlacement::Oldest => s = format!["{}@{}", s, &self.commit_dt],
+            OrdPlacement::Any => {}
+            OrdPlacement::Exact(_) => {}
+        }
+        if let WildPlacement::Exact(repo) = &self.repository {
+            s = format!["{}/{}", repo, s];
+        }
+
+        f.write_str(&s)
     }
 }
 

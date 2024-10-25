@@ -14,6 +14,8 @@ use regex::Regex;
 use semver::{BuildMetadata, Prerelease, Version};
 use serde::{Deserialize, Serialize};
 
+use crate::search::query::{self, VersionSearchQuery};
+
 use super::{get_info_from_blender, CollectedInfo};
 
 static MATCHERS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
@@ -281,6 +283,20 @@ impl Default for BasicBuildInfo {
 impl Display for BasicBuildInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write![f, "{}", self.ver]
+    }
+}
+
+impl From<BasicBuildInfo> for VersionSearchQuery {
+    fn from(val: BasicBuildInfo) -> Self {
+        VersionSearchQuery {
+            repository: query::WildPlacement::Any,
+            major: query::OrdPlacement::Exact(val.ver.v.major),
+            minor: query::OrdPlacement::Exact(val.ver.v.minor),
+            patch: query::OrdPlacement::Exact(val.ver.v.patch),
+            branch: query::WildPlacement::Exact(val.ver.branch().to_string()),
+            build_hash: query::WildPlacement::Exact(val.ver.build_hash().to_string()),
+            commit_dt: query::OrdPlacement::Exact(val.commit_dt),
+        }
     }
 }
 

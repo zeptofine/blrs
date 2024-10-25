@@ -81,12 +81,20 @@ impl Default for BLRSPaths {
     }
 }
 
+#[derive(Default, Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct History {
+    /// The last build that was launched
+    pub last_launched_build: Option<PathBuf>,
+    /// Last time the build repos were checked for updates
+    pub last_time_checked: Option<DateTime<Utc>>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct BLRSConfig {
-    pub last_time_checked: Option<DateTime<Utc>>,
-    pub paths: BLRSPaths,
     pub user_agent: String,
+    pub paths: BLRSPaths,
     pub repos: Vec<BuildRepo>,
+    pub history: History,
     pub proxy_options: Option<SerialProxyOptions>,
     pub gh_auth: Option<GithubAuthentication>,
 }
@@ -94,10 +102,10 @@ pub struct BLRSConfig {
 impl Default for BLRSConfig {
     fn default() -> Self {
         Self {
-            last_time_checked: Default::default(),
-            paths: Default::default(),
             user_agent: random_ua(),
+            paths: Default::default(),
             repos: DEFAULT_REPOS.clone().into_iter().collect(),
+            history: Default::default(),
             proxy_options: Default::default(),
             gh_auth: Default::default(),
         }
