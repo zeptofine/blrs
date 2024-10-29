@@ -188,7 +188,7 @@ pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(
         r"^
         (?:([^/]+)/)?
-    ([\^\-\*]|\d+)\.([\^\-\*]|\d+)\.([\^\-\*]|\d+)
+    ([\^\-\*]|\d+)\.([\^\-\*]|\d+)(?:\.([\^\-\*]|\d+))?
     (?:\-([^@\s\+\#]+))?
     (?:[\+\#]([\d\w\^\-\*]+))?
     (?:@([\^\-\*]|[\d\+:ZUTC \-\^]+))?
@@ -300,6 +300,11 @@ impl TryFrom<&str> for VersionSearchQuery {
                 OrdPlacement::from(ma.as_str()),
                 OrdPlacement::from(mi.as_str()),
                 OrdPlacement::from(pa.as_str()),
+            ),
+            (Some(ma), Some(mi), None) => (
+                OrdPlacement::from(ma.as_str()),
+                OrdPlacement::from(mi.as_str()),
+                OrdPlacement::Any,
             ),
             _ => return Err(FromError::CannotCaptureViaRegex),
         };
