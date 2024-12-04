@@ -38,10 +38,10 @@ impl RepoType {
                 Err(_) => Err(FetchError::InvalidResponse),
                 Ok(s) => match serde_json::from_str(&s) {
                     Ok(lst) => Ok(lst),
-                    Err(_) => {
+                    Err(e) => {
                         debug!["failed to parse string: {:?}", s];
 
-                        Err(FetchError::FailedToDeserialize)
+                        Err(FetchError::FailedToDeserialize(e))
                     }
                 },
             },
@@ -115,7 +115,7 @@ pub enum FetchError {
     /// An invalid response from the server.
     InvalidResponse,
     /// Failed to deserialize the response into readable format.
-    FailedToDeserialize,
+    FailedToDeserialize(serde_json::Error),
     /// There was an IO error when fetching.
     IoError(std::io::Error),
 }

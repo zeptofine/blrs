@@ -56,7 +56,8 @@ document-features = "0.2.10"
 
 [features]
 all = ["compressed-blends", "reqwest", "figment"]
-default = ["compressed-blends"]
+default = ["all"]
+# default = ["compressed-blends"]
 ## Uses [`flate2`] and [`zstd`] to extract builds compressed with Zstd and Gzip.
 compressed-blends = ["dep:flate2", "dep:zstd"]
 ## Adds reqwest methods in various places and gives the helper structs like FetcherState.
