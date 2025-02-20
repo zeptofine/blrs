@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "reqwest")]
 use reqwest::{Client, StatusCode, Url};
 
-use super::build_schemas::{
-    BlenderBuildSchema,
-    // github::GithubRelease
-};
+use super::build_schemas::BlenderBuildSchema;
 
 /// Enum representing the different types of repositories that can be fetched.
 ///
@@ -32,7 +29,7 @@ impl RepoType {
     ///
     /// Returns an error if deserialization fails for any reason, or if the response data is
     /// invalid (e.g. not in JSON format).
-    pub fn try_serialize(&self, data: Vec<u8>) -> Result<Vec<BlenderBuildSchema>, FetchError> {
+    pub fn try_deserialize(&self, data: Vec<u8>) -> Result<Vec<BlenderBuildSchema>, FetchError> {
         match self {
             RepoType::Blender => match String::from_utf8(data) {
                 Err(_) => Err(FetchError::InvalidResponse),
@@ -72,8 +69,11 @@ impl BuildRepo {
     /// Turns the link into a Url.
     ///
     /// If the `reqwest` feature is enabled (which it should be for most uses), this will parse the link into a valid `Url`.
+    /// 
+    /// Panics if the url is not parseable (which is nearly impossible)
     #[cfg(feature = "reqwest")]
     #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
+    #[must_use]
     pub fn url(&self) -> Url {
         Url::parse(&self.url).unwrap()
     }
@@ -161,8 +161,7 @@ pub async fn fetch_repo(
                     response.status().canonical_reason(),
                 ));
             }
-            let bytes = bytes.read();
-            repo.repo_type.try_serialize(bytes.clone())
+            repo.repo_type.try_deserialize(bytes)
         }
         FetcherState::Err(e) => Err(FetchError::Reqwest(e)),
     }

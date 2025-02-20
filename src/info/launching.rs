@@ -107,7 +107,36 @@ impl GeneratedParams {
             ..Default::default()
         }
     }
+
+    /// Extends the current arguments with the given args
+    pub fn extend_args(&mut self, args: Vec<String>) {
+        match &mut self.args {
+            Some(self_args) => {
+                self_args.extend(args);
+            }
+            None => {
+                self.args = Some(args);
+            }
+        }
+    }
 }
+
+impl From<GeneratedParams> for std::process::Command {
+    fn from(value: GeneratedParams) -> Self {
+        let mut command = std::process::Command::new(value.exe);
+        command
+            .args(
+                value
+                    .args
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect::<Vec<String>>(),
+            )
+            .envs(value.env.clone().unwrap_or_default());
+        command
+    }
+}
+
 #[derive(Clone, Debug)]
 /// Errors related to generating parameters.
 pub enum ArgGenerationError {}
@@ -164,7 +193,7 @@ impl LaunchArguments {
                 }
 
                 (
-                    which::which("open").unwrap_or(PathBuf::from("open")),
+                    PathBuf::from("open"),
                     Some(args),
                 )
             }

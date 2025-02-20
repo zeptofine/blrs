@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::Debug,
     fmt::Display,
     fs::File,
@@ -121,7 +121,7 @@ impl RepoEntry {
     }
 }
 
-fn read_repo_cache(repo_cache_path: &Path) -> Vec<RemoteBuild> {
+fn read_repo_cache(repo_cache_path: &Path) -> impl Iterator<Item = RemoteBuild> {
     match repo_cache_path.exists() {
         true => match File::open(repo_cache_path) {
             Ok(file) => {
@@ -133,19 +133,17 @@ fn read_repo_cache(repo_cache_path: &Path) -> Vec<RemoteBuild> {
     }
     .into_iter()
     .map(RemoteBuild::from)
-    .collect()
 }
 
 fn read_repo_cache_variants(repo_cache_path: &Path) -> HashMap<String, Variants<RemoteBuild>> {
     read_repo_cache(repo_cache_path)
-        .into_iter()
         .sorted_by_key(|k| k.basic.ver.clone())
         .chunk_by(|k| k.basic.ver.clone())
         .into_iter()
         .map(|(v, g)| {
             (v.to_string(), {
                 let variants: Vec<BuildVariant<RemoteBuild>> = g
-                    .filter(|b| !b.file_extension.as_ref().is_some_and(|e| e == "sha256"))
+                    .filter(|b| b.file_extension.as_ref().is_none_or(|e| e != "sha256"))
                     .map(|rb| BuildVariant {
                         target_os: rb.platform.clone().unwrap_or_default(),
                         architecture: rb.architecture.clone().unwrap_or_default(),
@@ -188,14 +186,14 @@ fn read_local_entries(repo_library_path: &Path) -> Result<Vec<BuildEntry>, std::
         .collect())
 }
 
-fn get_known_and_unknown_repos(
-    repos: Vec<BuildRepo>,
+fn get_known_and_unknown_repos<'a>(
+    repos: &'a [BuildRepo],
     paths: &BLRSPaths,
-) -> std::io::Result<Vec<Result<BuildRepo, String>>> {
-    let mut repo_map: HashMap<String, BuildRepo> =
-        repos.into_iter().map(|r| (r.repo_id.clone(), r)).collect();
+) -> std::io::Result<impl Iterator<Item = Result<&'a BuildRepo, String>>> {
+    let mut repo_map: HashMap<String, &BuildRepo> =
+        repos.iter().map(|r| (r.repo_id.clone(), r)).collect();
 
-    let folders: HashSet<String> = paths
+    let folders = paths
         .library
         .read_dir()
         .inspect_err(|e| error!("Failed to read {:?}: {}", paths.library, e))?
@@ -204,7 +202,7 @@ fn get_known_and_unknown_repos(
             is_dir_or_link_to_dir(&item.path())
                 .then(|| item.file_name().to_str().unwrap().to_string())
         })
-        .collect();
+        .unique();
 
     let existing: Vec<Result<_, _>> = folders
         .into_iter()
@@ -216,7 +214,7 @@ fn get_known_and_unknown_repos(
 
     let missing: Vec<Result<_, _>> = repo_map.into_values().map(Ok).collect();
 
-    Ok(existing.into_iter().chain(missing).collect())
+    Ok(existing.into_iter().chain(missing))
 }
 
 /// Reads and processes build repositories.
@@ -229,7 +227,7 @@ fn get_known_and_unknown_repos(
 ///
 /// The `installed_only` flag controls whether to only consider installed build entries
 pub fn read_repos(
-    repos: Vec<BuildRepo>,
+    repos: &[BuildRepo],
     paths: &BLRSPaths,
     installed_only: bool,
 ) -> std::io::Result<Vec<RepoEntry>> {
@@ -271,7 +269,7 @@ pub fn read_repos(
                     RepoEntry::Registered(r.clone().clone(), entries)
                 }
                 (Ok(r), Err(_)) => {
-                    RepoEntry::Registered(r, remote_variants.map(|(_, v)| v).collect())
+                    RepoEntry::Registered(r.clone(), remote_variants.map(|(_, v)| v).collect())
                 }
                 (Err(name), Ok(entries)) => RepoEntry::Unknown(name, entries),
                 (Err(name), Err(err)) => RepoEntry::Error(name, err),

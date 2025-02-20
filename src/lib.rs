@@ -1,5 +1,16 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(clippy::pedantic, clippy::style)]
+#![warn(unused_import_braces, unused_imports)]
+#![allow(clippy::unused_self, clippy::unused_async)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::missing_fields_in_debug)]
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation
+)]
+#![allow(clippy::missing_panics_doc)]
 
 //! ### `blrs` is a crate designed to streamline the management and utilization of Blender builds.
 //!
@@ -20,7 +31,13 @@
 #![doc = document_features::document_features!()]
 
 /// BLRS level configuration settings.
+#[cfg(feature = "config")]
+#[cfg_attr(docsrs, doc(cfg(feature = "config")))]
 pub mod config;
+
+/// Path information for blrs-managed builds and blrs itself.
+pub mod paths;
+
 /// Utilities and methods for downloading artifacts.
 pub mod fetching;
 /// Collections to describe local and remote Blender builds.
@@ -34,7 +51,10 @@ pub mod search;
 /// Methods for filtering repos based on the build target.
 pub mod build_targets;
 
-pub use config::{BLRSConfig, BLRSPaths};
-pub use config::{DEFAULT_LIBRARY_FOLDER, DEFAULT_REPOS_FOLDER, PROJECT_DIRS};
+#[cfg(feature = "config")]
+pub use config::BLRSConfig;
+
+pub use paths::{BLRSPaths, DEFAULT_LIBRARY_FOLDER, DEFAULT_REPOS_FOLDER, PROJECT_DIRS};
+
 pub use fetching::RemoteBuild;
 pub use info::{BasicBuildInfo, LocalBuild};

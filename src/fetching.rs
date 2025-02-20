@@ -1,6 +1,3 @@
-/// Module containing functionality related to authentication.
-pub mod authentication;
-
 /// Module responsible for building repositories.
 ///
 /// This module contains functions and types necessary for interacting with various repository services.

@@ -9,5 +9,5 @@ pub mod launching;
 
 pub use binfo_extraction::{get_info_from_blender, CollectedInfo};
 pub use blendfile_reader::{read_blendfile_header, BlendFileHeader, CompressionType};
-pub use build_info::{parse_blender_ver, BasicBuildInfo, LocalBuild};
+pub use build_info::{parse_blender_ver, BasicBuildInfo, LocalBuild, OLDVER_CUTOFF};
 pub use verbose_version::VerboseVersion;

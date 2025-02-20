@@ -24,8 +24,8 @@ static MATCHERS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
         // <major>.<minor> (sub <patch>): 2.80 (sub 75) -> 2.80.75
         r"(?P<ma>\d+)\.(?P<mi>\d+) \(sub (?P<pa>\d+)\)",
         // <major>.<minor>.<patch> <Prerelease>   2.80.0 Alpha  -> 2.80.0-alpha
-        r"(?P<ma>\d+)\.(?P<mi>\d+)\.(?P<pa>\d+)[ \-](?P<pre>[^+]*[^wli][^ndux][^s]?)",
-        r"(?P<ma>\d+)\.(?P<mi>\d+)[ \-](?P<pre>[^+]*[^wli][^ndux][^s]?)",
+        r"(?P<ma>\d+)\.(?P<mi>\d+)\.(?P<pa>\d+)[ \-](?P<pre>[^+]*)",
+        r"(?P<ma>\d+)\.(?P<mi>\d+)[ \-](?P<pre>[^+]*)",
         // <major>.<minor>: 2.79 -> 2.79.0
         r"(?P<ma>\d+)\.(?P<mi>\d+)$",
         // <major>.<minor><[chars]*(1-3)>: 2.79rc1 -> 2.79.0-rc1
@@ -65,8 +65,7 @@ fn simple_clean(s: &str) -> &str {
 /// This describes the first version that adopted the new SemVer compatible
 /// versioning scheme. Before that, it was seemingly arbitrary
 /// with a major version, a minor version, and sometimes an a or a b slapped to the end.
-#[allow(dead_code)]
-const OLDVER_CUTOFF: Version = Version {
+pub const OLDVER_CUTOFF: Version = Version {
     major: 2,
     minor: 83,
     patch: 0,
@@ -81,7 +80,6 @@ const FILE_VERSION: f32 = 1.0;
 /// This function handles various formats of Blender version strings, including older, non-SemVer compatible versions.
 /// It uses regular expressions to extract the major, minor, patch, and prerelease information from the input string.
 /// If the string cannot be parsed into a valid `Version` object, it returns `None`.
-
 pub fn parse_blender_ver(s: &str, search: bool) -> Option<Version> {
     let mut s = s.trim();
     if let Ok(v) = Version::parse(s) {

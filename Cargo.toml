@@ -43,27 +43,23 @@ figment = { version = "0.10.19", features = [
 # Helpers
 uuid = { version = "1.10.0", features = ["v4", "fast-rng"] }
 directories = "5.0.1"
-which = { version = "6.0.3", features = ["tracing"] }
-parking_lot = { version = "0.12.3" }
 log = "0.4.22"
 sha2 = "0.10.8"
 hex = "0.4.3"
 itertools = "0.13.0"
 zip = "2.2.0"
-thiserror = "1.0.65"
 document-features = "0.2.10"
 
 
 [features]
-all = ["compressed-blends", "reqwest", "figment"]
-default = ["all"]
-# default = ["compressed-blends"]
+all = ["compressed-blends", "reqwest", "config"]
 ## Uses [`flate2`] and [`zstd`] to extract builds compressed with Zstd and Gzip.
 compressed-blends = ["dep:flate2", "dep:zstd"]
 ## Adds reqwest methods in various places and gives the helper structs like FetcherState.
 reqwest = ["dep:reqwest"]
-## Adds a default figment builder for BLRSConfigs.
-figment = ["dep:figment"]
+## Adds config structs that BLRS-brand programs use for shared config state
+config = ["dep:figment"]
+
 
 [profile.release]
 lto = "fat"

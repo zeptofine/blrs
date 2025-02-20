@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
 use reqwest::{Client, Response, Url};
-
-use parking_lot::RwLock;
 
 /// A helper method for [FetcherState::new].
 #[inline]
@@ -97,8 +93,8 @@ pub enum FetcherState {
         /// The HTTP response object.
         response: Response,
 
-        /// The downloaded bytes so far, wrapped in an [`Arc<RwLock>`].
-        downloaded_bytes: Arc<RwLock<Vec<u8>>>,
+        /// The downloaded bytes so far
+        downloaded_bytes: Vec<u8>,
 
         /// The total size of the file (optional).
         total_bytes: Option<u64>,
@@ -109,8 +105,8 @@ pub enum FetcherState {
         /// The HTTP response object.
         response: Response,
 
-        /// The downloaded bytes wrapped in an [`Arc<RwLock>`]`.
-        bytes: Arc<RwLock<Vec<u8>>>,
+        /// The downloaded bytes 
+        bytes: Vec<u8>,
     },
 
     /// Error state, where an error occurred during the fetch process.
@@ -137,21 +133,19 @@ impl FetcherState {
                     Ok(response) => Self::Downloading {
                         total_bytes: response.content_length(),
                         response,
-                        downloaded_bytes: Arc::new(RwLock::new(vec![])),
+                        downloaded_bytes: vec![],
                     },
                     Err(e) => Self::Err(e),
                 }
             }
             Self::Downloading {
                 mut response,
-                downloaded_bytes,
+                mut downloaded_bytes,
                 total_bytes,
             } => match response.chunk().await {
                 Ok(Some(bytes)) => {
                     {
-                        let mut b = downloaded_bytes.write();
-
-                        b.extend(bytes.clone());
+                        downloaded_bytes.extend(bytes.clone());
                     }
 
                     Self::Downloading {

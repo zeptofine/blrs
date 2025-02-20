@@ -1,8 +1,12 @@
-use std::{fmt::Debug, fmt::Display, str::FromStr, sync::LazyLock};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use chrono::{DateTime, Utc};
 use regex::{Regex, RegexBuilder};
-use thiserror::Error;
 
 /// WildPlacement is used to define a strategy on how to match elements in an unordered collection.
 /// This has no `find` implementation like [OrdPlacement] does because it is
@@ -183,7 +187,6 @@ pub const VERSION_SEARCH_SYNTAX: &str =
 /// `(?:\@([\dT\+\:Z\ \^\*\-]+))?`  -- commit time (saved as ^|*|- or an isoformat) (optional)
 ///
 /// `$`                             -- end of string
-
 pub static VERSION_SEARCH_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(
         r"^
@@ -266,7 +269,7 @@ impl Display for VersionSearchQuery {
     }
 }
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone)]
 /// Errors that could occur from giving an incorrect string to [`VersionSearchQuery::try_from`].
 ///
 /// ```
@@ -277,8 +280,7 @@ impl Display for VersionSearchQuery {
 /// ```
 pub enum FromError {
     /// This can occur when the string could not be parsed by the [VERSION_SEARCH_REGEX].
-
-    #[error("Could not get required parameters from the given string")]
+    // #[error("Could not get required parameters from the given string")]
     CannotCaptureViaRegex,
 }
 
@@ -334,3 +336,13 @@ impl TryFrom<&str> for VersionSearchQuery {
         })
     }
 }
+impl Display for FromError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            FromError::CannotCaptureViaRegex => {
+                "Could not get required parameters from the given string"
+            }
+        })
+    }
+}
+impl Error for FromError {}
