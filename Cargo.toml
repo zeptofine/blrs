@@ -42,12 +42,12 @@ figment = { version = "0.10.19", features = [
 
 # Helpers
 uuid = { version = "1.10.0", features = ["v4", "fast-rng"] }
-directories = "5.0.1"
+directories = "6.0.0"
 log = "0.4.22"
 sha2 = "0.10.8"
 hex = "0.4.3"
-itertools = "0.13.0"
-zip = "2.3.0"
+itertools = "0.14.0"
+zip = "6.0.0"
 document-features = "0.2.10"
 
 

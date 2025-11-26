@@ -54,15 +54,31 @@ pub struct BlenderBuildSchema {
 
 impl From<BlenderBuildSchema> for RemoteBuild {
     fn from(val: BlenderBuildSchema) -> Self {
+        let BlenderBuildSchema {
+            url,
+            version,
+            branch,
+            hash,
+            platform,
+            architecture,
+            file_mtime,
+            file_extension,
+            release_cycle,
+            ..
+        } = val;
+        let ver = VerboseVersion {
+            v: BlenderBuildSchema::full_ver_(&release_cycle, &branch, &hash, &version),
+            hash_split: branch.len(),
+        };
         RemoteBuild {
-            link: val.url.clone(),
+            link: url,
             basic: BasicBuildInfo {
-                ver: VerboseVersion::from(val.full_version()),
-                commit_dt: DateTime::from_timestamp(val.file_mtime as i64, 0).unwrap(),
+                ver,
+                commit_dt: DateTime::from_timestamp(i64::try_from(file_mtime).unwrap(), 0).unwrap(),
             },
-            platform: Some(val.platform),
-            architecture: Some(val.architecture),
-            file_extension: Some(val.file_extension),
+            platform: Some(platform),
+            architecture: Some(architecture),
+            file_extension: Some(file_extension),
         }
     }
 }
@@ -70,10 +86,14 @@ impl From<BlenderBuildSchema> for RemoteBuild {
 impl BlenderBuildSchema {
     /// Constructs a `Version` object from the build schema's information.
     pub fn full_version(&self) -> Version {
+        Self::full_ver_(&self.release_cycle, &self.branch, &self.hash, &self.version)
+    }
+
+    fn full_ver_(release_cycle: &str, branch: &str, hash: &str, ver: &str) -> Version {
         Version {
-            pre: Prerelease::new(&self.release_cycle).unwrap(),
-            build: BuildMetadata::new(&format!["{}.{}", self.branch, self.hash]).unwrap(),
-            ..parse_blender_ver(&self.version, false).unwrap()
+            pre: Prerelease::new(release_cycle).unwrap(),
+            build: BuildMetadata::new(&format!["{branch}.{hash}"]).unwrap(),
+            ..parse_blender_ver(ver, false).unwrap()
         }
     }
 

@@ -33,24 +33,24 @@ impl std::fmt::Display for RemoteBuild {
     /// If no platform or architecture is provided, "unknown" and "null" are displayed respectively.
     /// The file extension is also included if available; otherwise, ".???".
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write![
-            f,
-            "{} {} ({})",
-            self.platform
-                .clone()
-                .unwrap_or_else(|| "unknown".to_string()),
-            self.architecture
-                .clone()
-                .unwrap_or_else(|| "null".to_string()),
-            self.file_extension
-                .clone()
-                .unwrap_or_else(|| ".???".to_string()),
-        ]
+        match &self.platform {
+            Some(s) => f.write_str(s),
+            None => f.write_str("unknown"),
+        }?;
+        match &self.architecture {
+            Some(s) => f.write_str(s),
+            None => f.write_str("null"),
+        }?;
+        match &self.file_extension {
+            Some(s) => f.write_str(&format!["({s})"]),
+            None => f.write_str("(.???)"),
+        }
     }
 }
 
 impl RemoteBuild {
     /// Gets a string representation of the remote build including the link.
+    #[must_use]
     pub fn string_with_link(&self) -> String {
         format!["{} - {:?}", self, self.link]
     }

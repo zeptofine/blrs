@@ -18,23 +18,16 @@ pub enum BlendLaunchTarget {
 
 impl BlendLaunchTarget {
     /// Modifies the provided argument vector based on the launch target.
-    pub fn transform(self, mut args: Vec<String>) -> Vec<String> {
+    pub fn transform(&self, args: &mut Vec<String>) {
         match self {
             BlendLaunchTarget::None => {}
-            BlendLaunchTarget::File(path) => args.push(
-                path.canonicalize()
-                    .unwrap_or(path)
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ),
+            BlendLaunchTarget::File(path) => args.push(match path.canonicalize() {
+                Ok(p) => p.to_str().unwrap().to_string(),
+                Err(_) => path.to_str().unwrap().to_string(),
+            }),
             BlendLaunchTarget::OpenLast => args.push("--open-last".to_string()),
-            BlendLaunchTarget::Custom(new_args) => {
-                args = args.into_iter().chain(new_args).collect()
-            }
+            BlendLaunchTarget::Custom(new_args) => args.extend(new_args.iter().cloned()),
         }
-
-        args
     }
 }
 
@@ -123,16 +116,15 @@ impl GeneratedParams {
 
 impl From<GeneratedParams> for std::process::Command {
     fn from(value: GeneratedParams) -> Self {
-        let mut command = std::process::Command::new(value.exe);
+        let GeneratedParams { exe, args, env } = value;
+        let mut command = std::process::Command::new(exe);
         command
             .args(
-                value
-                    .args
-                    .unwrap_or_default()
+                args.unwrap_or_default()
                     .into_iter()
                     .collect::<Vec<String>>(),
             )
-            .envs(value.env.clone().unwrap_or_default());
+            .envs(env.clone().unwrap_or_default());
         command
     }
 }
@@ -166,12 +158,10 @@ impl LaunchArguments {
 
     /// Resolves the launching arguments and creates the params required to launch blender
     pub fn assemble(self, lb: &LocalBuild) -> Result<GeneratedParams, ArgGenerationError> {
-        let blender = lb.folder.join(
-            lb.info
-                .custom_exe
-                .clone()
-                .unwrap_or(self.os_target.exe_name().to_string()),
-        );
+        let blender = match &lb.info.custom_exe {
+            Some(e) => lb.folder.join(e),
+            None => lb.folder.join(self.os_target.exe_name()),
+        };
 
         let (executable, args) = match self.os_target {
             OSLaunchTarget::Linux => (blender, None),
@@ -192,10 +182,7 @@ impl LaunchArguments {
                     }
                 }
 
-                (
-                    PathBuf::from("open"),
-                    Some(args),
-                )
+                (PathBuf::from("open"), Some(args))
             }
         };
 
@@ -203,13 +190,15 @@ impl LaunchArguments {
             exe: executable,
             args: args
                 .or(Some(vec![]))
-                .map(|a| self.file_target.clone().transform(a))
+                .map(|mut a| {
+                    self.file_target.transform(&mut a);
+                    a
+                })
                 .filter(|v| !v.is_empty()),
             env: match (lb.info.custom_env.clone(), self.env) {
                 (None, None) => None,
                 (None, Some(e)) | (Some(e), None) => Some(e),
-                (Some(cenv), Some(genv)) => {
-                    let mut new_env = cenv.clone();
+                (Some(mut new_env), Some(genv)) => {
                     new_env.extend(genv);
                     Some(new_env)
                 }

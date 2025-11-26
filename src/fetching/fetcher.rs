@@ -105,7 +105,7 @@ pub enum FetcherState {
         /// The HTTP response object.
         response: Response,
 
-        /// The downloaded bytes 
+        /// The downloaded bytes
         bytes: Vec<u8>,
     },
 
@@ -144,9 +144,7 @@ impl FetcherState {
                 total_bytes,
             } => match response.chunk().await {
                 Ok(Some(bytes)) => {
-                    {
-                        downloaded_bytes.extend(bytes.clone());
-                    }
+                    downloaded_bytes.extend(bytes);
 
                     Self::Downloading {
                         response,

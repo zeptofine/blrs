@@ -219,7 +219,7 @@ impl From<LocalBuildInfo> for BuildInfoSpec {
     fn from(info: LocalBuildInfo) -> Self {
         BuildInfoSpec {
             file_version: FILE_VERSION,
-            metadata: info.clone(),
+            metadata: info,
         }
     }
 }

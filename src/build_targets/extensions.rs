@@ -34,12 +34,12 @@ pub fn get_target_setup() -> Option<(&'static str, &'static str, &'static str)> 
 ///
 /// This function iterates over each repository and filters the build entries within it.
 /// Build entries that don't match the target platform are removed.
-pub fn filter_repos_by_target<V>(
+pub fn filter_repos_by_target<'a, V>(
     v: V,
     target: Option<(&'static str, &'static str, &'static str)>,
-) -> Vec<RepoEntry>
+) -> Vec<RepoEntry<'a>>
 where
-    V: IntoIterator<Item = RepoEntry>,
+    V: IntoIterator<Item = RepoEntry<'a>>,
 {
     let target = target.unwrap_or(get_target_setup().unwrap());
     v.into_iter()

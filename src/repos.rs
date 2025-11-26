@@ -97,9 +97,9 @@ pub enum BuildEntry {
 
 /// An entry of a build repo.
 #[derive(Debug, Serialize)]
-pub enum RepoEntry {
+pub enum RepoEntry<'a> {
     /// A registered repository entry with associated build entries.
-    Registered(BuildRepo, Vec<BuildEntry>),
+    Registered(&'a BuildRepo, Vec<BuildEntry>),
 
     /// An unknown repository entry that may still contain build entries but lacks a registered association.
     Unknown(String, Vec<BuildEntry>),
@@ -108,7 +108,7 @@ pub enum RepoEntry {
     Error(String, #[serde(skip)] std::io::Error),
 }
 
-impl RepoEntry {
+impl<'a> RepoEntry<'a> {
     /// Checks if any BuildEntry in the repository is of type Installed,
     /// indicating a locally installed build.
     pub fn has_installed_builds(&self) -> bool {
@@ -137,7 +137,7 @@ fn read_repo_cache(repo_cache_path: &Path) -> impl Iterator<Item = RemoteBuild> 
 
 fn read_repo_cache_variants(repo_cache_path: &Path) -> HashMap<String, Variants<RemoteBuild>> {
     read_repo_cache(repo_cache_path)
-        .sorted_by_key(|k| k.basic.ver.clone())
+        .sorted_by_cached_key(|k| k.basic.ver.clone())
         .chunk_by(|k| k.basic.ver.clone())
         .into_iter()
         .map(|(v, g)| {
@@ -190,8 +190,8 @@ fn get_known_and_unknown_repos<'a>(
     repos: &'a [BuildRepo],
     paths: &BLRSPaths,
 ) -> std::io::Result<impl Iterator<Item = Result<&'a BuildRepo, String>>> {
-    let mut repo_map: HashMap<String, &BuildRepo> =
-        repos.iter().map(|r| (r.repo_id.clone(), r)).collect();
+    let mut repo_map: HashMap<&str, &BuildRepo> =
+        repos.iter().map(|r| (r.repo_id.as_str(), r)).collect();
 
     let folders = paths
         .library
@@ -206,7 +206,7 @@ fn get_known_and_unknown_repos<'a>(
 
     let existing: Vec<Result<_, _>> = folders
         .into_iter()
-        .map(|s| match repo_map.remove(&s) {
+        .map(|s| match repo_map.remove(s.as_str()) {
             Some(r) => Ok(r),
             None => Err(s),
         })
@@ -226,11 +226,11 @@ fn get_known_and_unknown_repos<'a>(
 /// unknown repositories present in the filesystem.
 ///
 /// The `installed_only` flag controls whether to only consider installed build entries
-pub fn read_repos(
-    repos: &[BuildRepo],
+pub fn read_repos<'a>(
+    repos: &'a [BuildRepo],
     paths: &BLRSPaths,
     installed_only: bool,
-) -> std::io::Result<Vec<RepoEntry>> {
+) -> std::io::Result<Vec<RepoEntry<'a>>> {
     let registered = get_known_and_unknown_repos(repos, paths)?;
 
     Ok(registered
@@ -238,13 +238,13 @@ pub fn read_repos(
         .map(|r| {
             debug!("Evaluating {:?}", r);
             let id = match &r {
-                Ok(r) => r.repo_id.clone(),
-                Err(s) => s.clone(),
+                Ok(r) => &r.repo_id,
+                Err(s) => s,
             };
 
-            let library_path = paths.library.join(&id);
+            let library_path = paths.library.join(id);
             let entries = read_local_entries(&library_path);
-            let cache_path = paths.remote_repos.join(id.clone() + ".json");
+            let cache_path = paths.remote_repos.join(format!["{id}.json"]);
             let remote_variants = read_repo_cache_variants(&cache_path)
                 .into_iter()
                 .map(|(s, v)| (s, BuildEntry::NotInstalled(v)));
@@ -266,10 +266,10 @@ pub fn read_repos(
                             .map(|(_, e)| e)
                             .collect();
                     }
-                    RepoEntry::Registered(r.clone().clone(), entries)
+                    RepoEntry::Registered(r, entries)
                 }
                 (Ok(r), Err(_)) => {
-                    RepoEntry::Registered(r.clone(), remote_variants.map(|(_, v)| v).collect())
+                    RepoEntry::Registered(r, remote_variants.map(|(_, v)| v).collect())
                 }
                 (Err(name), Ok(entries)) => RepoEntry::Unknown(name, entries),
                 (Err(name), Err(err)) => RepoEntry::Error(name, err),

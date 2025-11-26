@@ -11,9 +11,9 @@ use semver::Version;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 /// A struct representing a version number with additional information about the build and branch.
 pub struct VerboseVersion {
-    v: Version,
+    pub(crate) v: Version,
     /// Index separating the build and hash in the build metadata string.
-    hash_split: usize,
+    pub(crate) hash_split: usize,
 }
 
 impl Default for VerboseVersion {

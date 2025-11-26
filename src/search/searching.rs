@@ -1,57 +1,56 @@
 use std::fmt::Debug;
 
-use crate::info::BasicBuildInfo;
+use crate::{info::BasicBuildInfo, search::OrdPlacement};
 
-use super::query::{OrdPlacement, VersionSearchQuery, WildPlacement};
-
-type RepoNickname = String;
+use super::query::{VersionSearchQuery, WildPlacement};
 
 /// A matcher meant for searching through a list of builds (Used in tandem with [`VersionSearchQuery`]).
-pub struct BInfoMatcher<'a, BI>
+pub struct BInfoMatcher<'a, BI, N>
 where
     BI: AsRef<BasicBuildInfo>,
+    N: Eq + AsRef<str>,
 {
-    versions: &'a [(BI, RepoNickname)],
+    versions: &'a [(BI, N)],
 }
 
-impl<'a, BI> BInfoMatcher<'a, BI>
+impl<'a, BI, N> BInfoMatcher<'a, BI, N>
 where
     BI: AsRef<BasicBuildInfo> + Debug,
+    N: Eq + AsRef<str> + Debug,
 {
     /// Creates a new instance of the matcher.
-    pub fn new(versions: &'a [(BI, RepoNickname)]) -> Self {
+    pub fn new(versions: &'a [(BI, N)]) -> Self {
         BInfoMatcher { versions }
     }
 
     /// Finds all the `BI`s that are matched by query: [`VersionSearchQuery`].
-    pub fn find_all(&self, query: &VersionSearchQuery) -> Vec<&(BI, RepoNickname)> {
-        let vs = self
+    pub fn find_all(&self, query: &VersionSearchQuery) -> Vec<&(BI, N)> {
+        let vs: Vec<(&BasicBuildInfo, &(BI, N))> = self
             .versions
             .iter()
             .filter_map(|x| {
-                let build: &BasicBuildInfo = x.0.as_ref();
+                let (bi, nick) = &x;
+                let build: &BasicBuildInfo = bi.as_ref();
 
-                let r = match query.repository.clone() {
-                    WildPlacement::Any => true,
-                    WildPlacement::Exact(r) => x.1.clone() == r,
-                };
-
-                let b = match query.build_hash.clone() {
-                    WildPlacement::Any => true,
-                    WildPlacement::Exact(hash) => build.ver.build_hash() == hash,
-                };
-                let br = match query.branch.clone() {
-                    WildPlacement::Any => true,
-                    WildPlacement::Exact(branch) => build.ver.branch() == branch,
-                };
-
-                if r && b && br {
-                    Some((build, x))
-                } else {
-                    None
+                if let WildPlacement::Exact(r) = &query.repository {
+                    if *nick.as_ref() == *r {
+                        return None;
+                    }
                 }
+                if let WildPlacement::Exact(hash) = &query.build_hash {
+                    if *build.ver.build_hash() == *hash {
+                        return None;
+                    }
+                }
+                if let WildPlacement::Exact(branch) = &query.branch {
+                    if *build.ver.branch() == *branch {
+                        return None;
+                    }
+                }
+
+                Some((build, x))
             })
-            .collect::<Vec<_>>();
+            .collect();
 
         let vs = match query.major {
             OrdPlacement::Any => vs,
