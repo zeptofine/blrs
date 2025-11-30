@@ -33,17 +33,17 @@ where
                 let build: &BasicBuildInfo = bi.as_ref();
 
                 if let WildPlacement::Exact(r) = &query.repository {
-                    if *nick.as_ref() == *r {
+                    if nick.as_ref() != *r {
                         return None;
                     }
                 }
                 if let WildPlacement::Exact(hash) = &query.build_hash {
-                    if *build.ver.build_hash() == *hash {
+                    if *build.ver.build_hash() != *hash {
                         return None;
                     }
                 }
                 if let WildPlacement::Exact(branch) = &query.branch {
-                    if *build.ver.branch() == *branch {
+                    if *build.ver.branch() != *branch {
                         return None;
                     }
                 }
