@@ -18,18 +18,18 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 
 # downloading Blender builds from builders
-reqwest = { version = "0.12.5", optional = true }
+reqwest = { version = "0.12.26", optional = true }
 
 # .blend compressions
-flate2 = { version = "1.0.31", optional = true }
-zstd = { version = "0.13.2", optional = true }
+flate2 = { version = "1.1.5", optional = true }
+zstd = { version = "0.13.3", optional = true }
 
 # parsing build info
-regex = "1.10.6"
-serde = { version = "1.0.207", features = ["derive"] }
-serde_json = "1.0.124"
-chrono = { version = "0.4.38", features = ["serde"] }
-semver = { version = "1.0.23", features = ["serde"] }
+regex = "1.12.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.146"
+chrono = { version = "0.4.42", features = ["serde"] }
+semver = { version = "1.0.27", features = ["serde"] }
 
 # configuration Saving/Loading
 figment = { version = "0.10.19", features = [
@@ -41,17 +41,18 @@ figment = { version = "0.10.19", features = [
 ], optional = true }
 
 # Helpers
-uuid = { version = "1.10.0", features = ["v4", "fast-rng"] }
+uuid = { version = "1.19.0", features = ["v4", "fast-rng"] }
 directories = "6.0.0"
-log = "0.4.22"
-sha2 = "0.10.8"
+log = "0.4.29"
+sha2 = "0.10.9"
 hex = "0.4.3"
 itertools = "0.14.0"
 zip = "6.0.0"
-document-features = "0.2.10"
+document-features = "0.2.12"
 
 
 [features]
+default = ["compressed-blends"]
 all = ["compressed-blends", "reqwest", "config"]
 ## Uses [`flate2`] and [`zstd`] to extract builds compressed with Zstd and Gzip.
 compressed-blends = ["dep:flate2", "dep:zstd"]
